@@ -1,7 +1,7 @@
 import time
 import uuid
 import bcrypt
-import random
+import secrets
 from flask import Blueprint, request, jsonify, g
 from ..config import Config
 from ..database import get_db
@@ -30,7 +30,7 @@ def check_password(password: str, hashed: str) -> bool:
         return False
 
 def hash_password(password: str) -> str:
-    salt = bcrypt.gensalt(rounds=8)
+    salt = bcrypt.gensalt(rounds=12)
     return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
 # Step 1: Verify NID
@@ -84,30 +84,25 @@ def send_email_otp():
         if db.query(User).filter(User.email == normalized).first():
             return jsonify({"error": "Email address is already linked to an existing account."}), 400
 
-    # Generate 6-digit cryptographic OTP
-    otp_code = f"{random.randint(100000, 999999):06d}"
+    # Generate 6-digit cryptographically secure OTP
+    otp_code = f"{secrets.randbelow(900000) + 100000:06d}"
     expires_at = time.time() + 600  # 10 minutes TTL
 
     _pending_email_otps[normalized] = {
         "otp": otp_code,
         "expires_at": expires_at,
+        "attempts": 0,
         "name": full_name.strip() if full_name else "Citizen"
     }
 
     email_result = EmailService.send_verification_otp(normalized, otp_code, recipient_name=full_name)
 
-    response_data = {
+    return jsonify({
         "success": True,
         "message": f"Verification code sent to {normalized}.",
         "expiresInSeconds": 600,
         "emailMode": email_result.get("mode")
-    }
-
-    # If in dev simulator mode, provide dev_otp for effortless developer testing
-    if email_result.get("mode") == "dev_simulated":
-        response_data["devOtp"] = otp_code
-
-    return jsonify(response_data)
+    })
 
 # Step 1.6: Verify Email OTP Code
 @auth_bp.route("/verify-email-otp", methods=["POST"])
@@ -130,6 +125,10 @@ def verify_email_otp():
         return jsonify({"error": "Verification code has expired. Please request a new one."}), 400
 
     if record["otp"] != otp_code:
+        record["attempts"] = record.get("attempts", 0) + 1
+        if record["attempts"] >= 5:
+            _pending_email_otps.pop(normalized, None)
+            return jsonify({"error": "Too many incorrect attempts. Please request a new verification code."}), 429
         return jsonify({"error": "Invalid verification code. Please check and try again."}), 400
 
     # Mark as verified in session cache (valid for 30 minutes to complete registration)
@@ -170,13 +169,10 @@ def register():
         if any(normalize_phone(user.phone) == user_phone for user in db.query(User.phone).all()):
             return jsonify({"error": "Phone number is already in use."}), 400
 
-        # Check if email was verified via OTP
-        is_email_verified = False
-        if email:
-            if user_email in _verified_emails and time.time() < _verified_emails[user_email]:
-                is_email_verified = True
-            elif data.get("isEmailVerified"):
-                is_email_verified = True
+        # Email is only considered verified if the server-side OTP cache confirms it
+        is_email_verified = bool(
+            email and user_email in _verified_emails and time.time() < _verified_emails[user_email]
+        )
 
         user_id = f"user-cit-{int(time.time() * 1000)}"
         new_user = User(
@@ -474,30 +470,27 @@ def forgot_password_request_otp():
         if not user or not user.email:
             return jsonify({"error": "No verified account associated with this email or identifier."}), 404
 
-        otp_code = f"{random.randint(100000, 999999):06d}"
+        otp_code = f"{secrets.randbelow(900000) + 100000:06d}"
         expires_at = time.time() + 600  # 10 minutes
 
         normalized_email = user.email.strip().lower()
         _pending_password_reset_otps[normalized_email] = {
             "otp": otp_code,
             "expires_at": expires_at,
+            "attempts": 0,
             "userId": user.id,
             "fullName": user.fullName,
         }
 
         email_result = EmailService.send_password_reset_otp(normalized_email, otp_code, user.fullName)
 
-        resp = {
+        return jsonify({
             "success": True,
             "message": f"6-digit password reset code sent to {normalized_email}.",
             "email": normalized_email,
             "expiresInSeconds": 600,
             "emailMode": email_result.get("mode")
-        }
-        if email_result.get("mode") == "dev_simulated":
-            resp["devOtp"] = otp_code
-
-        return jsonify(resp)
+        })
 
 # Step 5: Forgot Password - Confirm OTP & Reset Password
 @auth_bp.route("/forgot-password/reset", methods=["POST"])
@@ -522,6 +515,10 @@ def forgot_password_reset():
         return jsonify({"error": "Reset code has expired. Please request a new code."}), 400
 
     if record["otp"] != otp_code:
+        record["attempts"] = record.get("attempts", 0) + 1
+        if record["attempts"] >= 5:
+            _pending_password_reset_otps.pop(email, None)
+            return jsonify({"error": "Too many incorrect attempts. Please request a new reset code."}), 429
         return jsonify({"error": "Invalid verification code. Please check and try again."}), 400
 
     with get_db() as db:

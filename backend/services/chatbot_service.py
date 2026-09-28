@@ -15,12 +15,12 @@ from ..models import (
     utcnow_iso,
 )
 
-# 4-Tier Gemini Model Cascade (Verified 200 OK models for 2026 Gemini API keys)
+# 4-Tier Gemini Model Cascade (matches .env.example: gemini-2.5-flash -> 2.0-flash -> 2.0-flash-lite -> 1.5-flash)
 GEMINI_MODEL_CASCADE = [
-    "gemini-3.6-flash",
-    "gemini-3.7-flash",
-    "gemini-3.8-flash",
-    "gemma-4-31b-it",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-1.5-flash",
 ]
 
 THANA_TO_DISTRICT = {
