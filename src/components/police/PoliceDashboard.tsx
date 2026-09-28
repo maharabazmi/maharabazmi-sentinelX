@@ -58,9 +58,13 @@ import { TableRowSkeleton } from '../ui/SkeletonLoader';
 import { EvidenceViewer } from '../common/EvidenceViewer';
 import { CaseChatThread } from '../common/CaseChatThread';
 import { BANGLADESH_DIVISIONS, getThanasByDistrict } from '../../data/bangladeshGeo';
+import { useTheme } from '../../context/ThemeContext';
+
 
 export const PoliceDashboard: React.FC = () => {
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const [activeTab, setActiveTab] = useState<
     'overview' | 'case_management' | 'heatmap' | 'emergency_broadcast' | 'sos_radar'
   >('case_management');
@@ -564,15 +568,17 @@ export const PoliceDashboard: React.FC = () => {
                     : user.badgeNumber}
                 </strong>
               </span>
-              {isOnlineStatus ? (
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[10px] font-mono font-bold tracking-wider uppercase flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                  LIVE POLICE SERVER UPLINK SYNCHRONIZED
-                </span>
-              ) : (
-                <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] font-mono font-bold tracking-wider uppercase">
-                  ⚡ OFFLINE MODE — WAITING FOR NETWORK UPLINK
-                </span>
+              {(stationActiveSOS.length > 0 || offlineQueuedSOS) && (
+                isOnlineStatus ? (
+                  <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-mono font-bold tracking-wider uppercase flex items-center gap-1.5 ${isDark ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-300' : 'bg-emerald-100 border-emerald-300 text-emerald-700'}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full animate-ping ${isDark ? 'bg-emerald-400' : 'bg-emerald-500'}`} />
+                    LIVE POLICE SERVER UPLINK SYNCHRONIZED
+                  </span>
+                ) : (
+                  <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-mono font-bold tracking-wider uppercase ${isDark ? 'bg-amber-500/20 border-amber-400/40 text-amber-300' : 'bg-amber-100 border-amber-300 text-amber-700'}`}>
+                    ⚡ OFFLINE MODE — WAITING FOR NETWORK UPLINK
+                  </span>
+                )
               )}
             </div>
 
@@ -658,8 +664,12 @@ export const PoliceDashboard: React.FC = () => {
         <div
           className={`p-5 sm:p-6 rounded-3xl border shadow-2xl transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
             !isOnlineStatus || offlineQueuedSOS
-              ? 'bg-gradient-to-r from-amber-950/90 via-red-950/90 to-slate-950 border-amber-500/50'
-              : 'bg-gradient-to-r from-red-950/90 via-slate-950/95 to-emerald-950/80 border-red-500/50'
+              ? isDark
+                ? 'bg-gradient-to-r from-amber-950/90 via-red-950/90 to-slate-950 border-amber-500/50'
+                : 'bg-gradient-to-r from-amber-50 via-red-50 to-white border-amber-300 shadow-amber-900/10'
+              : isDark
+                ? 'bg-gradient-to-r from-red-950/90 via-slate-950/95 to-emerald-950/80 border-red-500/50'
+                : 'bg-gradient-to-r from-red-50 via-slate-50 to-emerald-50 border-red-300 shadow-red-900/10'
           }`}
         >
           <div className="flex items-start gap-4">
@@ -668,15 +678,15 @@ export const PoliceDashboard: React.FC = () => {
             </div>
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-mono font-bold uppercase tracking-widest text-red-300">
+                <span className={`text-xs font-mono font-bold uppercase tracking-widest ${isDark ? 'text-red-300' : 'text-red-600'}`}>
                   🚨 PRIORITY STATION SOS TELEMETRY ({user?.stationOrThana || 'METROPOLITAN JURISDICTION'})
                 </span>
                 {!isOnlineStatus || offlineQueuedSOS ? (
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/25 border border-amber-400/50 text-amber-200 text-[10px] font-mono font-bold tracking-wider uppercase">
+                  <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-mono font-bold tracking-wider uppercase ${isDark ? 'bg-amber-500/25 border-amber-400/50 text-amber-200' : 'bg-amber-100 border-amber-300 text-amber-700'}`}>
                     ⚡ OFFLINE STORE-AND-FORWARD OUTBOX QUEUED — TURN ONLINE TO SYNCHRONIZE
                   </span>
                 ) : (
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/25 border border-emerald-400/50 text-emerald-200 text-[10px] font-mono font-bold tracking-wider uppercase">
+                  <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-mono font-bold tracking-wider uppercase ${isDark ? 'bg-emerald-500/25 border-emerald-400/50 text-emerald-200' : 'bg-emerald-100 border-emerald-300 text-emerald-700'}`}>
                     ● LIVE POLICE SERVER UPLINK SYNCHRONIZED ({lastUplinkSyncTime})
                   </span>
                 )}
@@ -688,11 +698,11 @@ export const PoliceDashboard: React.FC = () => {
                 const cit = resolveSOSCitizenIdentity(latestSOS);
                 return (
                   <>
-                    <h3 className="text-base sm:text-lg font-bold text-white">
-                      Distress Beacon: <span className="text-red-300">{latestSOS.locationName}</span> — Citizen: <span className="text-emerald-300">{cit.name}</span> ({cit.phone})
+                    <h3 className={`text-base sm:text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      Distress Beacon: <span className={isDark ? 'text-red-300' : 'text-red-600'}>{latestSOS.locationName}</span> — Citizen: <span className={isDark ? 'text-emerald-300' : 'text-emerald-700'}>{cit.name}</span> ({cit.phone})
                     </h3>
-                    <p className="text-xs text-slate-300 font-mono">
-                      GPS: {latestSOS.latitude.toFixed(4)}° N, {latestSOS.longitude.toFixed(4)}° E • Status: <strong className="text-white">{latestSOS.assignedUnit || latestSOS.status}</strong> • Station Coverage: <strong className="text-amber-300">{user?.stationOrThana || getSOSStation(latestSOS)}</strong>
+                    <p className={`text-xs font-mono ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      GPS: {latestSOS.latitude.toFixed(4)}° N, {latestSOS.longitude.toFixed(4)}° E • Status: <strong className={isDark ? 'text-white' : 'text-slate-900'}>{latestSOS.assignedUnit || latestSOS.status}</strong> • Station Coverage: <strong className={isDark ? 'text-amber-300' : 'text-amber-700'}>{user?.stationOrThana || getSOSStation(latestSOS)}</strong>
                     </p>
                   </>
                 );

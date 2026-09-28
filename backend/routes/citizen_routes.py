@@ -425,10 +425,16 @@ def resolve_active_sos():
     sos_id = data.get("sosId")
 
     with get_db() as db:
-        query = db.query(SOSRequest).filter(SOSRequest.citizenId == user.id, SOSRequest.status != "RESOLVED")
+        query = db.query(SOSRequest).filter(SOSRequest.status != "RESOLVED")
         if sos_id:
             query = query.filter(SOSRequest.id == sos_id)
+        else:
+            query = query.filter(SOSRequest.citizenId == user.id)
+            
         active_sos = query.first()
+        
+        if active_sos and active_sos.citizenId != user.id and user.role == "CITIZEN":
+            return jsonify({"success": False, "message": "Permission denied."}), 403
 
         if not active_sos:
             return jsonify({"success": True, "message": "No active SOS beacon found."})
