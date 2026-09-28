@@ -15,7 +15,8 @@ import {
   Award,
   Minimize2,
   Maximize2,
-  Cpu
+  Cpu,
+  Mic
 } from 'lucide-react';
 import { ApiClient } from '../../services/api';
 import { CrimeType, CrimeSeverity, ConsumerIssueType } from '../../types';
@@ -87,6 +88,56 @@ export const CitizenAICopilot: React.FC<CitizenAICopilotProps> = ({
   ]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
+  const [isListening, setIsListening] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'bn-BD'; // Supports Bangla naturally, but Web Speech handles mixed English well
+
+        recognition.onresult = (event: any) => {
+          let finalTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript;
+            }
+          }
+          if (finalTranscript) {
+             setInput(prev => (prev + ' ' + finalTranscript).trim());
+          }
+        };
+
+        recognition.onerror = (e: any) => {
+          console.error("Speech recognition error", e);
+          setIsListening(false);
+        };
+
+        recognition.onend = () => {
+          setIsListening(false);
+        };
+
+        recognitionRef.current = recognition;
+      }
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+    } else {
+      try {
+        recognitionRef.current?.start();
+        setIsListening(true);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -524,11 +575,19 @@ export const CitizenAICopilot: React.FC<CitizenAICopilotProps> = ({
             }}
             className="p-3 bg-slate-950 border-t border-slate-800 flex items-center gap-2 light:bg-slate-100 light:border-slate-200"
           >
+            <button
+              type="button"
+              onClick={toggleListening}
+              className={`p-2.5 rounded-xl transition ${isListening ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40 animate-pulse' : 'bg-slate-900 text-slate-400 hover:text-cyan-300 border border-slate-800 light:bg-white light:border-slate-300 light:text-slate-500 light:hover:text-cyan-600'}`}
+              title={isListening ? 'Stop listening' : 'Dictate in Bangla/English'}
+            >
+              <Mic className="w-4 h-4" />
+            </button>
             <input
               type="text"
               value={input}
               onChange={e => setInput(e.target.value)}
-              placeholder="Ask in English/Bangla or describe an incident to auto-fill..."
+              placeholder={isListening ? "Listening..." : "Ask in English/Bangla or describe an incident to auto-fill..."}
               className="sx-input flex-1 text-xs !py-2.5"
             />
             <button

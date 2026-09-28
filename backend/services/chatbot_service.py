@@ -183,7 +183,7 @@ class ChatbotService:
         msg_lower = message.lower()
 
         # 1. Emergency SOS Detection
-        emergency_keywords = ("robbery happening", "attacking", "kidnap", "gun", "fire hazard", "help me now", "emergency sos", "life in danger", "বাচান", "আক্রমণ", "ডাকাতি হচ্ছে")
+        emergency_keywords = ("robbery happening", "attacking", "kidnap", "gun", "fire hazard", "help me now", "emergency sos", "life in danger", "বাঁচাও", "ছিনতাই", "ডাকাতি", "বিপদ", "আগুন")
         if any(k in msg_lower for k in emergency_keywords):
             actions.append({
                 "type": "EMERGENCY_SOS_CARD",
@@ -219,7 +219,7 @@ class ChatbotService:
                 "assignedOfficer": r.get("assignedOfficerName") or r.get("assignedStation") or "Thana Duty Officer",
                 "latestNote": (r.get("timeline") or [{}])[-1].get("note", "Logged in Police GD registry."),
             })
-        elif any(k in msg_lower for k in ("track", "status", "my case", "my complaint", "my report", "latest case", "দরখাস্ত", "মামলার অবস্থা", "আপডেট")):
+        elif any(k in msg_lower for k in ("track", "status", "my case", "my complaint", "my report", "latest case", "সর্বশেষ", "অবস্থা", "কেস", "কমপ্লেইন", "জিডি")):
             for c in db_context.get("my_complaints", [])[:2]:
                 actions.append({
                     "type": "CASE_STATUS_CARD",
@@ -257,17 +257,8 @@ class ChatbotService:
 
         # 4. Price / Overcharge & 25% DNCRP Reward Calculator + Auto-Fill Consumer Complaint
         numbers = [float(n.replace(",", "")) for n in re.findall(r"\b(\d{2,6}(?:,\d{3})*(?:\.\d+)?)\b", message) if not (len(n) >= 10)]
-        consumer_keywords = (
-            "mrp", "overcharge", "price", "expired", "adulterat", "fake", "counterfeit",
-            "weight", "short weight", "shop", "store", "pharmacy", "superstore", "dncrp",
-            "reward", "25%", "fine", "দাম", "মেয়াদ", "ভেজাল", "ওজন", "দোকান"
-        )
-        crime_keywords = (
-            "crime", "police", "report", "gd", "general diary", "thana",
-            "theft", "stolen", "robbery", "mugged", "snatch", "extortion", "harass",
-            "assault", "cyber", "scam", "fraud", "hacked", "bkash", "nagad", "threat",
-            "চুরি", "ছিনতাই", "হুমকি", "প্রতারণা", "জিডি", "থানা", "অপরাধ"
-        )
+        consumer_keywords = ("mrp", "overcharge", "price", "expired", "adulterat", "fake", "counterfeit", "weight", "short weight", "shop", "store", "pharmacy", "superstore", "dncrp", "reward", "25%", "fine", "বেশি দাম", "নকল", "ভেজাল", "ভোক্তা", "মেয়াদ")
+        crime_keywords = ("crime", "police", "report", "gd", "general diary", "thana", "theft", "stolen", "robbery", "mugged", "snatch", "extortion", "harass", "assault", "cyber", "scam", "fraud", "hacked", "bkash", "nagad", "threat", "চুরি", "ছিনতাই", "হুমকি", "হ্যাকিং", "প্রতারণা", "জিডি", "পুলিশ")
 
         # Detect district/thana from text
         detected_district, detected_thana = "Dhaka", "Gulshan"
@@ -287,7 +278,7 @@ class ChatbotService:
                 mrp_val = round(paid_val * 0.8, 2)
 
             issue_type = "PRICE_GOUGING"
-            if any(w in msg_lower for w in ("expir", "date", "medicine", "মেয়াদ")):
+            if any(w in msg_lower for w in ("expir", "date", "medicine", "মেয়াদ")):
                 issue_type = "EXPIRED_GOODS"
             elif any(w in msg_lower for w in ("weight", "gram", "kg", "liter", "scale", "ওজন")):
                 issue_type = "WEIGHT_MEASUREMENT_FRAUD"
@@ -313,7 +304,7 @@ class ChatbotService:
                     "lawSection": "Section 40 & Section 76(4) of DNCRP Act 2009",
                 })
 
-            if any(w in msg_lower for w in ("overcharge", "charged", "bought", "sold", "expired", "fake", "weight", "report", "complain", "file", "how", "দাম", "নকল", "মেয়াদ")) or len(numbers) >= 2:
+            if any(w in msg_lower for w in ("expir", "date", "medicine", "মেয়াদ")):
                 actions.append({
                     "type": "PREFILL_CONSUMER_COMPLAINT",
                     "payload": {
@@ -332,12 +323,12 @@ class ChatbotService:
         elif any(k in msg_lower for k in crime_keywords) and "CASE_STATUS_CARD" not in {a["type"] for a in actions}:
             crime_type = "THEFT_ROBBERY"
             severity = "MEDIUM"
-            if any(w in msg_lower for w in ("cyber", "scam", "fraud", "bkash", "nagad", "hack", "phish", "প্রতারণা")):
+            if any(w in msg_lower for w in ("cyber", "scam", "fraud", "bkash", "nagad", "hack", "phish", "হ্যাকিং", "প্রতারণা")):
                 crime_type = "FRAUD_SCAM"
             elif any(w in msg_lower for w in ("extort", "ransom", "চাঁদাবাজি")):
                 crime_type = "EXTORTION"
-                severity = "HIGH"
-            elif any(w in msg_lower for w in ("assault", "attack", "beat", "weapon", "মারধর")):
+            elif any(w in msg_lower for w in ("assault", "harass", "threat", "হুমকি", "হামলা")):
+            elif any(w in msg_lower for w in ("assault", "harass", "threat", "হুমকি", "হামলা")):
                 crime_type = "ASSAULT"
                 severity = "HIGH"
             elif any(w in msg_lower for w in ("harass", "stalk", "threat", "হুমকি")):
