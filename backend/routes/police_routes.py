@@ -73,7 +73,7 @@ def dashboard_summary():
         alerts = db.query(EmergencyAlert).all()
 
         new_reports = len([r for r in reports if r.status in ("SUBMITTED", "OFFICER_ASSIGNED")])
-        pending_verification = len([r for r in reports if r.status in ("SUBMITTED", "OFFICER_ASSIGNED")])
+        pending_verification = len([r for r in reports if r.status == "SUBMITTED"])
         active_investigations = len([r for r in reports if r.status in ("VERIFIED", "OFFICER_ASSIGNED", "INVESTIGATION")])
         closed_cases = len([r for r in reports if r.status == "CASE_CLOSED"])
 

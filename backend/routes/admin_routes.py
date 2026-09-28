@@ -35,42 +35,43 @@ def check_admin_access():
 @admin_bp.route("/system-overview", methods=["GET"])
 def system_overview():
     with get_db() as db:
-        users = db.query(User).all()
-        crimes = db.query(CrimeReport).all()
-        complaints = db.query(ConsumerComplaint).all()
-        alerts = db.query(EmergencyAlert).all()
-        sos = db.query(SOSRequest).all()
-        logs = db.query(AuditLog).all()
-
+        total_users = db.query(User).count()
         users_by_role = {
-            "CITIZEN": len([u for u in users if u.role == "CITIZEN"]),
-            "POLICE": len([u for u in users if u.role == "POLICE"]),
-            "CONSUMER_RIGHTS": len([u for u in users if u.role == "CONSUMER_RIGHTS"]),
-            "ADMIN": len([u for u in users if u.role == "ADMIN"]),
+            "CITIZEN": db.query(User).filter(User.role == "CITIZEN").count(),
+            "POLICE": db.query(User).filter(User.role == "POLICE").count(),
+            "CONSUMER_RIGHTS": db.query(User).filter(User.role == "CONSUMER_RIGHTS").count(),
+            "ADMIN": db.query(User).filter(User.role == "ADMIN").count(),
         }
-
-        db_type_str = "National Relational Data Cluster (Active)"
+        total_crimes = db.query(CrimeReport).count()
+        verified_crimes = db.query(CrimeReport).filter(
+            CrimeReport.status.notin_(["SUBMITTED", "REJECTED"])
+        ).count()
+        total_complaints = db.query(ConsumerComplaint).count()
+        total_alerts = db.query(EmergencyAlert).count()
+        total_sos = db.query(SOSRequest).count()
+        total_logs = db.query(AuditLog).count()
+        unauthorized_blocked = db.query(AuditLog).filter(AuditLog.status == "DENIED").count()
 
         security_status = {
             "encryptionEngine": "End-to-End Cryptographic Protection (Active)",
             "porichoyGateway": "NATIONAL_KYC_GATEWAY_ACTIVE",
             "aiPredictionEngine": "ONLINE (Spatial-Temporal Risk Analytics)",
             "uptimeSeconds": int(time.time() - SERVER_START_TIME),
-            "databaseType": db_type_str,
-            "totalAuditLogs": len(logs),
-            "unauthorizedAttemptsBlocked": len([l for l in logs if l.status == "DENIED"]),
+            "databaseType": "National Relational Data Cluster (Active)",
+            "totalAuditLogs": total_logs,
+            "unauthorizedAttemptsBlocked": unauthorized_blocked,
         }
 
         return jsonify({
             "success": True,
             "stats": {
-                "totalUsers": len(users),
+                "totalUsers": total_users,
                 "usersByRole": users_by_role,
-                "totalCrimesLodged": len(crimes),
-                "verifiedCrimes": len([c for c in crimes if c.status not in ("SUBMITTED", "REJECTED")]),
-                "totalConsumerComplaints": len(complaints),
-                "totalEmergencyAlertsIssued": len(alerts),
-                "totalSOSRequests": len(sos),
+                "totalCrimesLodged": total_crimes,
+                "verifiedCrimes": verified_crimes,
+                "totalConsumerComplaints": total_complaints,
+                "totalEmergencyAlertsIssued": total_alerts,
+                "totalSOSRequests": total_sos,
                 "securityStatus": security_status,
             }
         })
@@ -205,7 +206,6 @@ def create_user():
     return jsonify({
         "success": True,
         "user": user_dict,
-        "temporaryPassword": temporary_password,
         "emailDispatched": email_result.get("success", False),
         "emailMode": email_result.get("mode"),
         "emailMessage": email_result.get("message")
@@ -343,9 +343,7 @@ def security_config():
     return jsonify({
         "success": True,
         "config": {
-            "porichoyApiEndpoint": Config.PORICHOY_API_ENDPOINT,
             "porichoyMockMode": not bool(Config.PORICHOY_API_KEY),
-            "encryptionAlgorithm": "AES-256-GCM",
             "jwtExpirationHours": Config.JWT_EXPIRATION_HOURS,
             "aiModel": "SentinelX-CrimeRisk-GradientBoostedTree v2.4 (Demo)",
             "heatmapAccessRole": "POLICE, ADMIN",
