@@ -50,6 +50,16 @@ THANA_TO_DISTRICT = {
 }
 
 
+from ..data.bangladesh_geo_data import ALL_64_DISTRICTS, ALL_THANAS
+import math
+
+def _haversine(lat1, lon1, lat2, lon2):
+    R = 6371
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+
 class ChatbotService:
     """
     SentinelX Dual-Engine Action Copilot:
@@ -261,11 +271,26 @@ class ChatbotService:
         crime_keywords = ("crime", "police", "report", "gd", "general diary", "thana", "theft", "stolen", "robbery", "mugged", "snatch", "extortion", "harass", "assault", "cyber", "scam", "fraud", "hacked", "bkash", "nagad", "threat", "চুরি", "ছিনতাই", "হুমকি", "হ্যাকিং", "প্রতারণা", "জিডি", "পুলিশ")
 
         # Detect district/thana from text
-        detected_district, detected_thana = "Dhaka", "Gulshan"
+        detected_district, detected_thana = "", ""
         for kw, (dist, th) in THANA_TO_DISTRICT.items():
             if kw in msg_lower:
                 detected_district, detected_thana = dist, th
                 break
+                
+        if not detected_thana:
+            for t_name in sorted(ALL_THANAS.keys(), key=len, reverse=True):
+                if len(t_name) >= 4 and t_name in msg_lower:
+                    detected_thana = t_name.title()
+                    t_lat, t_lon = ALL_THANAS[t_name]
+                    closest_dist = ""
+                    min_dist = float('inf')
+                    for d_name, (d_lat, d_lon) in ALL_64_DISTRICTS.items():
+                        d = _haversine(t_lat, t_lon, d_lat, d_lon)
+                        if d < min_dist:
+                            min_dist = d
+                            closest_dist = d_name.title()
+                    detected_district = closest_dist
+                    break
 
         if any(k in msg_lower for k in consumer_keywords):
             mrp_val = 0.0
@@ -327,7 +352,6 @@ class ChatbotService:
                 crime_type = "FRAUD_SCAM"
             elif any(w in msg_lower for w in ("extort", "ransom", "চাঁদাবাজি")):
                 crime_type = "EXTORTION"
-            elif any(w in msg_lower for w in ("assault", "harass", "threat", "হুমকি", "হামলা")):
             elif any(w in msg_lower for w in ("assault", "harass", "threat", "হুমকি", "হামলা")):
                 crime_type = "ASSAULT"
                 severity = "HIGH"
