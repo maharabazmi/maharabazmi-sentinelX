@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { UserRole } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { motion } from 'framer-motion';
 import { BrandLogo } from '../common/BrandLogo';
 
 interface LandingPageProps {
@@ -42,14 +43,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   return (
     <div className="w-full min-h-screen text-slate-100 selection:bg-[#02baff] selection:text-slate-950 font-sans">
       {/* FUTURISTIC HERO SECTION (Inspired by Fixile AI Interface) */}
-      <section className="relative overflow-hidden pt-10 pb-16 sm:pb-20 border-b border-[#02baff]/15 bg-gradient-to-b from-[#05070e] via-[#080d1a] to-[#05070e]">
+      <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }} className="relative overflow-hidden pt-10 pb-16 sm:pb-20 border-b border-[#02baff]/15 bg-gradient-to-b from-[#05070e] via-[#080d1a] to-[#05070e]">
         {/* Hologram radial background glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-gradient-to-b from-[#0147bf]/20 via-[#02baff]/10 to-transparent blur-3xl pointer-events-none -z-0" />
 
         <div className="max-w-6xl mx-auto px-4 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
             {/* Left Column: Mission & Controls */}
-            <div className="lg:col-span-7 space-y-5 text-center lg:text-left">
+            <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, delay: 0.2 }} className="lg:col-span-7 space-y-5 text-center lg:text-left">
 
               <h1 className="text-4xl sm:text-6xl font-black tracking-tight text-white font-['Orbitron'] leading-[1.1]">
                 INTELLIGENT <br />
@@ -133,10 +134,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   </button>
                 </div>
               )}
-            </div>
+            </motion.div>
 
             {/* Right Column: Holographic Logo Showcase & Visual Terminal */}
-            <div className="lg:col-span-5 flex flex-col items-center justify-center relative">
+            <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, delay: 0.4 }} className="lg:col-span-5 flex flex-col items-center justify-center relative">
               <div className="relative w-full max-w-sm aspect-square flex items-center justify-center">
                 {/* Orbital radar rings */}
                 <div className="hero-radar-pulse absolute inset-0 rounded-full border border-[#02baff]/20" />
@@ -169,13 +170,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   <span className="text-[10px] text-slate-400 font-mono">Dispatch</span>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* CORE CAPABILITIES (Minimal, Futuristic, Less Text) */}
-      <section className="py-16 sm:py-20 max-w-6xl mx-auto px-4">
+      <motion.section initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-100px" }} transition={{ duration: 0.6 }} className="py-16 sm:py-20 max-w-6xl mx-auto px-4">
         <div className="text-center max-w-2xl mx-auto mb-14 space-y-2">
           <span className="text-xs font-['Orbitron'] uppercase tracking-widest text-[#02baff] font-bold">
             PLATFORM CAPABILITIES
@@ -240,10 +241,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* EMERGENCY HOTLINES DIRECTORY (Modern Card Grid) */}
-      <section className="py-12 sm:py-14 bg-[#05070e] border-t border-[#02baff]/15">
+      <motion.section initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-100px" }} transition={{ duration: 0.6 }} className="py-12 sm:py-14 bg-[#05070e] border-t border-[#02baff]/15">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
             <div>
@@ -295,7 +296,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </a>
           </div>
         </div>
-      </section>
+      </motion.section>
     </div>
   );
 };
