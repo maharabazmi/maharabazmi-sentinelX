@@ -779,82 +779,58 @@ export const PoliceDashboard: React.FC = () => {
       {/* ========================================================================= */}
       {activeTab === 'case_management' && (
         <div className="space-y-6 animate-in fade-in duration-200">
-          {/* Station Jurisdiction & Queue Selector */}
-          <div className="flex flex-col gap-4 p-4 rounded-2xl bg-slate-900 border border-slate-800">
-            <div>
-              <div className="flex items-center gap-2">
-                <Shield className="w-4 h-4 text-blue-400" />
-                <span className="text-sm font-bold text-white">
-                  {user?.stationOrThana ? `${user.stationOrThana} Station Roster` : 'Police Jurisdiction Queue'}
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-[10px] font-mono font-bold text-blue-400">
-                  SHARED QUEUE
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Citizen incident reports in your Thana are placed in this shared queue. Any officer can accept, reject, or reassign a case within the Thana.
-              </p>
-            </div>
+          {/* Queue Scope Tabs */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleScopeChange('all_station')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 ${
+                reportQueueScope === 'all_station'
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50 shadow-md shadow-amber-500/10'
+                  : 'bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-800'
+              }`}
+            >
+              <span>All Station Cases</span>
+              <span className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold ${
+                reportQueueScope === 'all_station' ? 'bg-amber-500/30 text-amber-200' : 'bg-slate-800 text-slate-400'
+              }`}>
+                {stats?.totalLodgedCases ?? reports.length}
+              </span>
+            </button>
 
-            {/* Scope Toggle Pills */}
-            <div className="w-full">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 rounded-2xl bg-slate-100/60 dark:bg-slate-950/70 p-1.5 border border-slate-300 dark:border-slate-700 shadow-inner shadow-slate-300/60 dark:shadow-black/30">
-                <button
-                  type="button"
-                  onClick={() => handleScopeChange('all_station')}
-                  aria-pressed={reportQueueScope === 'all_station'}
-                  className={`w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs sm:text-[13px] font-semibold transition-all duration-200 min-w-0 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950 ${
-                    reportQueueScope === 'all_station'
-                      ? 'bg-[#bddfe9] text-[#123a4d] shadow-sm ring-1 ring-[#7aa7b8] border-[#6e96a5] dark:bg-sky-900 dark:text-sky-50 dark:ring-sky-400/70 dark:border-sky-400/70 dark:shadow-sky-950/50'
-                      : 'bg-[#dfeaf0] text-slate-700 hover:bg-[#d5e2e8] border-[#b9c9d0] dark:bg-sky-950/50 dark:text-sky-100 dark:hover:bg-sky-900/70 dark:border-sky-700/70'
-                  }`}
-                >
-                  <Shield className="w-4 h-4 text-[#1c4a62] dark:text-sky-300 shrink-0" />
-                  <span className="truncate">All Station Cases</span>
-                </button>
+            <button
+              type="button"
+              onClick={() => handleScopeChange('my_cases')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 ${
+                reportQueueScope === 'my_cases'
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50 shadow-md shadow-amber-500/10'
+                  : 'bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-800'
+              }`}
+            >
+              <span>My Assigned Cases</span>
+              <span className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold ${
+                reportQueueScope === 'my_cases' ? 'bg-amber-500/30 text-amber-200' : 'bg-slate-800 text-slate-400'
+              }`}>
+                {stats?.myActiveCases ?? 0}
+              </span>
+            </button>
 
-                <button
-                  type="button"
-                  onClick={() => handleScopeChange('my_cases')}
-                  aria-pressed={reportQueueScope === 'my_cases'}
-                  className={`w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs sm:text-[13px] font-semibold transition-all duration-200 min-w-0 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950 ${
-                    reportQueueScope === 'my_cases'
-                      ? 'bg-[#c6ebd3] text-[#1d4538] shadow-sm ring-1 ring-[#71a987] border-[#7fa88e] dark:bg-emerald-900 dark:text-emerald-50 dark:ring-emerald-400/70 dark:border-emerald-400/70 dark:shadow-emerald-950/50'
-                      : 'bg-[#eaf7ef] text-slate-700 hover:bg-[#dfeee5] border-[#c7ddcd] dark:bg-emerald-950/50 dark:text-emerald-100 dark:hover:bg-emerald-900/70 dark:border-emerald-700/70'
-                  }`}
-                >
-                  <UserCheck className="w-4 h-4 text-[#245d43] dark:text-emerald-300 shrink-0" />
-                  <span className="truncate">My Assigned Cases</span>
-                  {stats?.myActiveCases !== undefined && (
-                    <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold shrink-0 ${
-                      stats.myActiveCases > 0 ? 'bg-[#b8e5c7] text-[#164b35] dark:bg-emerald-800 dark:text-emerald-50' : 'bg-slate-200 text-slate-600 dark:bg-emerald-950 dark:text-emerald-200'
-                    }`}>
-                      {stats.myActiveCases}
-                    </span>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleScopeChange('station_unassigned')}
-                  aria-pressed={reportQueueScope === 'station_unassigned'}
-                  className={`w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs sm:text-[13px] font-semibold transition-all duration-200 min-w-0 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950 ${
-                    reportQueueScope === 'station_unassigned'
-                      ? 'bg-[#f3db8c] text-[#553d00] shadow-sm ring-1 ring-[#caa94a] border-[#bb9840] dark:bg-amber-900 dark:text-amber-50 dark:ring-amber-400/70 dark:border-amber-400/70 dark:shadow-amber-950/50'
-                      : 'bg-[#f8efcf] text-slate-700 hover:bg-[#f1e6bb] border-[#dccd8d] dark:bg-amber-950/50 dark:text-amber-100 dark:hover:bg-amber-900/70 dark:border-amber-700/70'
-                  }`}
-                >
-                  <span className="truncate">Station Queue (Unassigned)</span>
-                  {stats?.stationUnassigned !== undefined && (
-                    <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold shrink-0 ${
-                      stats.stationUnassigned > 0 ? 'bg-[#f1d36d] text-[#573d00] dark:bg-amber-800 dark:text-amber-50' : 'bg-slate-200 text-slate-600 dark:bg-amber-950 dark:text-amber-200'
-                    }`}>
-                      {stats.stationUnassigned}
-                    </span>
-                  )}
-                </button>
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={() => handleScopeChange('station_unassigned')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 ${
+                reportQueueScope === 'station_unassigned'
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50 shadow-md shadow-amber-500/10'
+                  : 'bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-800'
+              }`}
+            >
+              <span>Station Queue (Unassigned)</span>
+              <span className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold ${
+                reportQueueScope === 'station_unassigned' ? 'bg-amber-500/30 text-amber-200' : 'bg-slate-800 text-slate-400'
+              }`}>
+                {stats?.stationUnassigned ?? 0}
+              </span>
+            </button>
           </div>
 
           {/* Filter & Search Bar */}
