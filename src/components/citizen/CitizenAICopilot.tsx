@@ -365,7 +365,7 @@ export const CitizenAICopilot: React.FC<CitizenAICopilotProps> = ({
                                 <Scale className="w-3.5 h-3.5 text-amber-400" />
                                 Ready to Pre-Fill DNCRP Dispute Form
                               </span>
-                              <span className="text-[10px] font-mono text-slate-400">{p.shopThana}, {p.shopDistrict}</span>
+                              <span className="text-[10px] font-mono text-slate-400">{p.shopThana ? `${p.shopThana}, ${p.shopDistrict}` : 'TBD'}</span>
                             </div>
                             <div className="text-[11px] text-slate-300 space-y-0.5 font-mono bg-slate-950/70 p-2.5 rounded-xl border border-slate-800">
                               <div>Shop: <strong className="text-white">{p.shopName}</strong></div>
@@ -400,11 +400,11 @@ export const CitizenAICopilot: React.FC<CitizenAICopilotProps> = ({
                                 <ShieldAlert className="w-3.5 h-3.5 text-cyan-400" />
                                 Ready to Pre-Fill Police GD / Crime Report
                               </span>
-                              <span className="text-[10px] font-mono text-slate-400">{p.thana}, {p.district}</span>
+                              <span className="text-[10px] font-mono text-slate-400">{p.thana ? `${p.thana}, ${p.district}` : 'TBD'}</span>
                             </div>
                             <div className="text-[11px] text-slate-300 space-y-0.5 font-mono bg-slate-950/70 p-2.5 rounded-xl border border-slate-800">
                               <div>Category: <strong className="text-white">{p.crimeType}</strong> ({p.severity})</div>
-                              <div>Jurisdiction: <strong className="text-cyan-300">{p.thana} Thana, {p.district}</strong></div>
+                              <div>Jurisdiction: <strong className="text-cyan-300">{p.thana ? `${p.thana} Thana, ${p.district}` : 'Auto-detecting from GPS...'}</strong></div>
                             </div>
                             <button
                               type="button"
