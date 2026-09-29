@@ -121,6 +121,8 @@ CREATE TABLE IF NOT EXISTS consumer_complaints (
     workflowQueue VARCHAR(40) NOT NULL DEFAULT 'INTAKE',
     assignedOfficerId VARCHAR(64),
     assignedOfficerName VARCHAR(150),
+    pendingOfficerId VARCHAR(64),
+    pendingOfficerName VARCHAR(150),
     assignedOffice VARCHAR(150),
     intakeVerifiedBy VARCHAR(150),
     intakeVerifiedAt VARCHAR(40),

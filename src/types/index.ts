@@ -247,6 +247,8 @@ export interface ConsumerComplaint {
   penaltyImposed?: string;
   assignedOfficerName?: string;
   assignedOfficerId?: string;
+  pendingOfficerName?: string;
+  pendingOfficerId?: string;
   timeline: Array<{
     timestamp: string;
     status: ComplaintStatus;
