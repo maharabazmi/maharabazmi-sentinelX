@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>SentinelX — Project Architecture & Data Flow</title>
+<style>
+@page { size: A4; margin: 16mm; } *{box-sizing:border-box} body{font-family:Arial,sans-serif;color:#172033;font-size:10.2pt;line-height:1.42;margin:0} h1{font-size:25pt;color:#087ea4;margin:0 0 4px} h2{font-size:15pt;color:#087ea4;border-bottom:1px solid #a9d8e7;padding-bottom:3px;margin:20px 0 7px} h3{font-size:11.5pt;color:#163f56;margin:13px 0 4px} p{margin:5px 0 8px}.sub{color:#526777;font-size:11pt;margin-bottom:16px}.flow{font-family:"Courier New",monospace;white-space:pre-wrap;background:#f1f8fb;border-left:4px solid #18a4ce;padding:10px;margin:7px 0 10px;font-size:9.3pt}.note{background:#fff6df;border:1px solid #e8c66b;padding:9px;border-radius:4px} ul{margin:4px 0 9px;padding-left:20px} li{margin:2px 0} table{width:100%;border-collapse:collapse;margin:7px 0 11px;font-size:9.3pt} th{background:#087ea4;color:#fff;text-align:left} th,td{padding:5px 6px;border:1px solid #c7d6dc;vertical-align:top} .small{font-size:8.7pt;color:#526777}.pagebreak{page-break-before:always}
+</style></head><body>
+<h1>SentinelX</h1><div class="sub">Project Architecture, Component Responsibilities &amp; Full Data Flow</div>
+<p><b>SentinelX</b> is a Bangladesh-focused public-safety and consumer-protection demonstration platform. It supports four role-based portals: citizens, police officers, DNCRP consumer-rights officers, and national administrators.</p>
+
+<h2>1. System at a glance</h2>
+<div class="flow">React / Vite web application (port 3000)
+                 |  fetch('/api/...') + JWT Bearer token
+                 v
+Flask Python REST API (port 5000)
+  |-- authentication and role checks
+  |-- reporting, SOS, consumer, police, admin routes
+  |-- notifications, audit logs, geocoding, chatbot, analytics
+                 v
+SQLAlchemy database layer
+  |-- PostgreSQL when configured
+  '-- SQLite file: sentinelx.db in local/demo mode</div>
+<p>The frontend lives in <b>src/</b>. The Python backend lives in <b>backend/</b>. <b>app.py</b> is the server entry point. During development, Vite proxies every <code>/api</code> call to Flask; in a production-style run Flask can serve the built <code>dist/</code> frontend itself.</p>
+
+<h2>2. Startup sequence</h2>
+<ol><li><b>Frontend:</b> <code>npm run dev</code> launches Vite at port 3000.</li><li><b>Backend:</b> <code>python app.py</code> creates Flask at port 5000.</li><li><b>Database:</b> Flask initializes tables and attempts a PostgreSQL connection. If unavailable, it falls back to local SQLite.</li><li><b>Seed data:</b> On an empty database, demo users, reports, alerts, and barcode data are added.</li><li><b>UI:</b> React starts as a guest, shows the landing page, and opens a dashboard after successful authentication.</li></ol>
+
+<h2>3. Frontend responsibilities</h2>
+<table><tr><th>Part</th><th>What it does</th></tr><tr><td>src/App.tsx</td><td>Top-level UI controller. Renders the landing page or the correct dashboard according to the authenticated user role.</td></tr><tr><td>src/context/AuthContext.tsx</td><td>Holds current user, token, alerts, notifications, login/logout, and periodic refresh logic.</td></tr><tr><td>src/services/api.ts</td><td>One API gateway for all frontend requests. Adds the JWT Authorization header and converts API errors into UI errors.</td></tr><tr><td>CitizenDashboard</td><td>Crime reports, consumer complaints, SOS, barcode verification, case tracking, AI copilot.</td></tr><tr><td>PoliceDashboard</td><td>Crime queue, assignment and investigation work, heatmaps, emergency broadcasts, SOS dispatch.</td></tr><tr><td>ConsumerDashboard</td><td>DNCRP complaint intake, inspections, enforcement, fines, shop/barcode management, rewards.</td></tr><tr><td>AdminDashboard</td><td>Nationwide overview, user provisioning, audit logs, report export, AI predictions, operational directives.</td></tr></table>
+<p>After login, the browser keeps the JWT in <b>sessionStorage</b>. Alerts and notifications are refreshed immediately and then polled every 15 seconds. The project does not use WebSockets for real-time updates.</p>
+
+<h2>4. Authentication and access control</h2>
+<div class="flow">Register / Login form
+  → NID validation and optional email OTP validation
+  → User record + bcrypt password hash
+  → Flask issues signed JWT
+  → Browser saves JWT in sessionStorage
+  → React receives user role and opens matching dashboard</div>
+<p>Protected API requests include <code>Authorization: Bearer &lt;token&gt;</code>. Backend middleware verifies the signed JWT, retrieves the current user from the database, and blocks roles that are not allowed to use that endpoint. The admin uses a separate clearance flow and clearance key.</p>
+<p>NID verification defaults to deterministic mock data for the demonstration. It can call Porichoy only if its API configuration is provided. SMTP settings similarly determine whether real emails can be sent.</p>
+
+<h2>5. Crime report / GD data flow</h2>
+<div class="flow">Citizen crime-report form
+  → POST /api/citizen/reports
+  → validate mandatory information
+  → create report ID and CR tracking ID
+  → normalize GPS / location coordinates
+  → save CrimeReport, evidence JSON, initial timeline
+  → find police officers for the selected Thana
+  → create notifications for citizen and police queue
+  → write audit log
+
+Police dashboard
+  → GET eligible reports
+  → verify/reject, claim, or assign a report
+  → update status, assigned officer, timeline and investigation notes
+  → create citizen notification / optional email and audit record
+
+Citizen dashboard
+  → GET own reports
+  → view status, assigned officer, evidence, docket and messages</div>
+<p>The jurisdiction service matches report Thana/district to officer postings. Its officer-selection logic considers jurisdiction, crime type, severity, police specialization, workload, and proximity.</p>
+
+<h2>6. Consumer complaint / DNCRP data flow</h2>
+<div class="flow">Citizen consumer-complaint form
+  → POST /api/citizen/complaints
+  → create complaint ID and DNCRP tracking number
+  → save shop, product, barcode, MRP, amount paid, evidence and timeline
+  → notify citizen and matching DNCRP intake officers
+  → create audit log
+
+DNCRP dashboard
+  → claim intake case
+  → update workflow queue, investigation notes and status
+  → record final finding, penalty, fine and reward details
+  → notify citizen
+
+Citizen dashboard
+  → track complaint and reward status
+  → download an e-check PDF when eligible</div>
+<p>Complaints support shop details, trade licence/BIN, product data, barcode, overcharging information, evidence, officer assignment, investigation summary, final finding, fine, and reward-payment reference.</p>
+
+<h2>7. SOS emergency data flow</h2>
+<div class="flow">Citizen presses SOS
+  → POST /api/citizen/sos with GPS or landmark
+  → geocoding service resolves reliable coordinates
+  → jurisdiction service selects appropriate police station
+  → SOS request stored and police notified
+  → police dashboard reads SOS queue
+  → officer records response status, unit and notes
+  → citizen sees progress or can resolve / stand down the SOS</div>
+<p>The app also includes demonstration handling for a store-and-forward style offline SOS packet. It remains a local demo workflow, not a production emergency-dispatch integration.</p>
+
+<h2>8. Barcode verification data flow</h2>
+<div class="flow">Citizen enters/scans a barcode
+  → GET /api/citizen/barcode/&lt;barcode&gt;
+  → search local barcode registry
+  → return product, company, BSTI standard, MRP and authenticity status
+  → optionally use result to prefill a consumer complaint</div>
+<p>The frontend also contains an optional Open Food Facts fallback lookup. The main backend registry is the project’s local demonstration product catalogue.</p>
+
+<div class="pagebreak"></div>
+<h2>9. Messaging, alerts, notifications and auditing</h2>
+<table><tr><th>Feature</th><th>Flow</th></tr><tr><td>Case chat</td><td>Authorized citizen/officer sends a message to <code>/api/cases/&lt;case_id&gt;/messages</code>; Flask stores a CaseMessage record and the other party retrieves it in the dashboard.</td></tr><tr><td>Notifications</td><td>Case, complaint, reward, SOS, and similar actions create per-user notification rows. The frontend fetches them every 15 seconds and lets a user mark them read.</td></tr><tr><td>Emergency broadcasts</td><td>Police can create/toggle public emergency alerts. Logged-in users retrieve active alerts and see a banner.</td></tr><tr><td>Audit logs</td><td>Important actions—report filing, assignment, status changes, exports, and blocked access attempts—write AuditLog records for admin review.</td></tr></table>
+
+<h2>10. Admin and AI analytics flow</h2>
+<div class="flow">Admin clearance login
+  → AdminDashboard
+  → system overview / users / reports / audit logs
+  → optional CSV export action recorded in audit log
+  → request AI prediction generation
+  → prediction engine reads crime-report data + demonstration baseline
+  → return risk forecasts, hotspots and suggested directives
+  → admin may issue operational directive to police</div>
+<p>The prediction system is a demonstration analytics engine. It combines seeded/synthetic assumptions with current project reports and can use scikit-learn when installed. It is not a validated operational crime-prediction product.</p>
+
+<h2>11. Sentinel Prime chatbot flow</h2>
+<div class="flow">Citizen message
+  → POST /api/citizen/assistant
+  → load the citizen's recent reports, complaints and active alerts
+  → match any mentioned case number, barcode or shop
+  → extract intent and generate UI action cards
+       (SOS prompt, case status, barcode result, reward calculator, form prefill)
+  → try Gemini model cascade when API key is configured
+  → otherwise return deterministic local legal/help response</div>
+<p>This means the chatbot is hybrid: it can use Gemini, but its case lookup and guided UI actions have a local rules-based fallback.</p>
+
+<h2>12. Core database data</h2>
+<table><tr><th>Table / model</th><th>Purpose</th></tr><tr><td>users</td><td>Citizen, police, DNCRP, and administrator accounts; identity, role, posting and credentials.</td></tr><tr><td>crime_reports</td><td>Crime/GD details, place, evidence, assignment, status and investigation updates.</td></tr><tr><td>consumer_complaints</td><td>DNCRP complaint, shop/product information, workflow, finding, fine and reward data.</td></tr><tr><td>sos_requests</td><td>Emergency location, routed station, response unit and SOS status.</td></tr><tr><td>emergency_alerts</td><td>Police-created public safety broadcasts.</td></tr><tr><td>barcode_registry / shops</td><td>Product authenticity/MRP records and merchant compliance/reputation information.</td></tr><tr><td>notifications / case_messages</td><td>Per-user updates and case-specific communication.</td></tr><tr><td>audit_logs</td><td>Security and operational history.</td></tr><tr><td>operational_directives</td><td>Admin-issued instructions for police activity and threat response.</td></tr></table>
+
+<h2>13. Backend route groups</h2>
+<table><tr><th>Base endpoint</th><th>Responsibility</th></tr><tr><td>/api/health</td><td>Service/database health status.</td></tr><tr><td>/api/auth</td><td>NID checks, registration, login, admin clearance, OTPs, password changes.</td></tr><tr><td>/api/citizen</td><td>Reports, complaints, SOS, barcode lookup, notifications, reward e-check, assistant.</td></tr><tr><td>/api/police</td><td>Crime queue, investigation, officer assignment, heatmap, alerts, SOS response.</td></tr><tr><td>/api/consumer</td><td>DNCRP complaints, officers, shops, barcode management, rewards.</td></tr><tr><td>/api/admin</td><td>System overview, users, reports, audit logs, analytics and directives.</td></tr><tr><td>/api/cases</td><td>Case message thread retrieval and sending.</td></tr></table>
+
+<h2>14. Important project limitations</h2>
+<div class="note"><b>Academic/demo scope:</b> This project should not be used as a real emergency-reporting or government system. It can fall back to a local SQLite file; external identity, email and AI services are optional/mockable; evidence is stored as JSON rather than hardened file storage; alerts are polling-based; and default credentials/secrets must be replaced for any deployment.</div>
+<p class="small">Generated from the current SentinelX source code and README.</p>
+</body></html>

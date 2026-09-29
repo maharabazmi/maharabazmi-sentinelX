@@ -714,7 +714,7 @@ export const PoliceDashboard: React.FC = () => {
             {stationActiveSOS[0] && stationActiveSOS[0].status === SOSStatus.SOS_SENT && (
               <button
                 type="button"
-                onClick={() => handleRespondToSOS(stationActiveSOS[0].id, SOSStatus.POLICE_RESPONDING, `Patrol Alpha (${user?.stationOrThana?.split(',')[0] || 'Station'})`, '5 mins')}
+                onClick={() => handleRespondToSOS(stationActiveSOS[0].id, SOSStatus.RESPONDING, `Patrol Alpha (${user?.stationOrThana?.split(',')[0] || 'Station'})`, '5 mins')}
                 className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-lg shadow-emerald-600/30 flex items-center gap-1.5"
               >
                 <Shield className="w-4 h-4" />

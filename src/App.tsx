@@ -123,13 +123,13 @@ const AppContent: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="w-full bg-[var(--bg-body)] border-t border-[#02baff]/15 py-8 px-4 text-xs text-slate-400 transition-colors duration-250">
+      <footer className="w-full bg-white dark:bg-[#03060f]/95 border-t border-slate-200 dark:border-[#02baff]/20 py-8 px-4 text-xs text-slate-600 dark:text-slate-400 backdrop-blur-xl relative z-20 transition-colors duration-250">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
-            <BrandLogo variant="mark" size="sm" />
+            <BrandLogo variant="mark" size="sm" glow={true} />
             <div>
-              <span className="font-bold text-white font-['Orbitron'] tracking-wider text-xs">
-                SENTINEL<span className="text-[#02baff]">X</span> BANGLADESH
+              <span className="font-bold text-slate-900 dark:text-white font-['Orbitron'] tracking-wider text-xs block">
+                SENTINEL<span className="text-[#0147bf] dark:text-[#02baff]">X</span> BANGLADESH
               </span>
               <p className="text-[10px] text-slate-500 font-mono">
                 National Public Safety & Consumer Integrity Platform
@@ -137,18 +137,22 @@ const AppContent: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-6 text-[11px] font-mono">
-            <span className="flex items-center gap-1.5 text-slate-300">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#02baff] animate-pulse" />
-              NID Verification Standard
+          <div className="flex flex-wrap items-center justify-center gap-5 text-[11px] font-mono">
+            <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              SHA-256 Validated
             </span>
-            <span className="flex items-center gap-1.5 text-slate-300">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-              Emergency 999 • DNCRP 16121
+            <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#0147bf] dark:bg-[#02baff]" />
+              Porichoy NID Biometric Standard
+            </span>
+            <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              DNCRP Act 2009 Integration
             </span>
           </div>
 
-          <div className="text-[10px] text-slate-500 font-mono">
+          <div className="text-[10px] text-slate-500 font-mono text-center md:text-right">
             &copy; {new Date().getFullYear()} Government of Bangladesh • Civil Safety Initiative
           </div>
         </div>
