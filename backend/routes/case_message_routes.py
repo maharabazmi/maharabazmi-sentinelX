@@ -11,6 +11,11 @@ from ..models import (
 from ..middleware.auth import verify_auth
 from ..services.notification_service import NotificationService
 from ..services.audit_service import AuditService
+from ..services.jurisdiction_service import (
+    is_consumer_district_match,
+    normalize_consumer_district,
+    get_consumer_officer_district,
+)
 
 case_message_bp = Blueprint("case_messages", __name__, url_prefix="/api/cases")
 
@@ -43,6 +48,15 @@ def _resolve_case_context(db, raw_case_id: str):
     return clean_id, [clean_id], fallback_type, None, None
 
 
+def _can_access_consumer_case(user, complaint):
+    if user.role != "CONSUMER_RIGHTS":
+        return True
+    if not complaint or not complaint.shopDistrict:
+        return False
+    district = get_consumer_officer_district(user)
+    return bool(district and is_consumer_district_match(district, complaint.shopDistrict))
+
+
 @case_message_bp.route("/<case_id>/messages", methods=["GET", "POST"])
 @verify_auth
 def handle_case_messages(case_id):
@@ -50,7 +64,11 @@ def handle_case_messages(case_id):
     # 1. GET: Retrieve all chronological messages across both canonical caseId and internal id aliases
     if request.method == "GET":
         with get_db() as db:
-            canonical_id, alias_ids, _, _, _ = _resolve_case_context(db, case_id)
+            canonical_id, alias_ids, case_type, _, complaint = _resolve_case_context(db, case_id)
+            if g.user.role == "CONSUMER_RIGHTS" and (
+                case_type != "CONSUMER" or not _can_access_consumer_case(g.user, complaint)
+            ):
+                return jsonify({"error": "This case is outside your assigned district."}), 403
             messages = (
                 db.query(CaseMessage)
                 .filter(CaseMessage.caseId.in_(alias_ids))
@@ -96,6 +114,10 @@ def handle_case_messages(case_id):
     with get_db() as db:
         canonical_id, _, resolved_type, report, complaint = _resolve_case_context(db, case_id)
         effective_case_type = case_type or resolved_type
+        if g.user.role == "CONSUMER_RIGHTS" and (
+            effective_case_type != "CONSUMER" or not _can_access_consumer_case(g.user, complaint)
+        ):
+            return jsonify({"error": "This case is outside your assigned district."}), 403
 
         new_message = CaseMessage(
             id=msg_id,

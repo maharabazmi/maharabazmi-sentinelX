@@ -110,7 +110,8 @@ export const Header: React.FC<HeaderProps> = ({
         const dncrpCategory = [
           'Complaint Intake Officer',
           'Investigation Officer',
-          'Adjudication Officer'
+          'Adjudication Officer',
+          'Deputy Director'
         ].includes(user?.designation || '')
           ? user?.designation
           : 'DNCRP AUTHORITY';

@@ -27,7 +27,8 @@ import {
   Check,
   MailCheck,
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Trash2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ApiClient } from '../../services/api';
@@ -59,9 +60,11 @@ const normalizeAdminPhone = (value: string) => {
 
 const formatAdminPhone = (value: string) => {
   let digits = value.replace(/\D/g, '');
-  if (digits.startsWith('88')) digits = digits.slice(2);
-  if (!digits) return '+88';
+  if (digits.startsWith('0088')) digits = digits.slice(4);
+  else if (digits.startsWith('88')) digits = digits.slice(2);
+  if (digits && !digits.startsWith('0')) digits = `0${digits}`;
   digits = digits.slice(0, 11);
+  if (!digits) return '';
   return `+88 ${digits.slice(0, 5)}${digits.length > 5 ? `-${digits.slice(5)}` : ''}`;
 };
 
@@ -102,11 +105,12 @@ export const AdminDashboard: React.FC = () => {
   const [newFullName, setNewFullName] = useState('');
   const [newNID, setNewNID] = useState('');
   const [newEmail, setNewEmail] = useState('');
-  const [newPhone, setNewPhone] = useState('+88');
+  const [newPhone, setNewPhone] = useState('');
   const [newRole, setNewRole] = useState<UserRole | ''>('');
   const [newBadge, setNewBadge] = useState('');
   const [newDesignation, setNewDesignation] = useState('');
   const [newDepartment, setNewDepartment] = useState('');
+  const [consumerDistrict, setConsumerDistrict] = useState('');
   const [policeDistrict, setPoliceDistrict] = useState('Dhaka');
   const [policeThana, setPoliceThana] = useState('');
   const [newStation, setNewStation] = useState('');
@@ -152,6 +156,7 @@ export const AdminDashboard: React.FC = () => {
   const [auditSearchQuery, setAuditSearchQuery] = useState('');
   const [auditRoleFilter, setAuditRoleFilter] = useState('ALL');
   const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
   const fetchAdminData = async () => {
     setIsLoading(true);
@@ -320,11 +325,12 @@ Portal URL: ${window.location.origin}`;
         setNewFullName('');
         setNewNID('');
         setNewEmail('');
-        setNewPhone('+88');
+        setNewPhone('');
         setNewRole('');
         setNewBadge('');
         setNewDesignation('');
         setNewDepartment('');
+        setConsumerDistrict('');
         setPoliceThana('');
         setNewStation('');
         setNewPassword('');
@@ -337,6 +343,25 @@ Portal URL: ${window.location.origin}`;
       alert(err.message || 'Failed to provision user account.');
     } finally {
       setIsCreatingUser(false);
+    }
+  };
+
+  const handleDeleteUser = async (target: User) => {
+    if (target.id === user?.id || target.role === UserRole.ADMIN) return;
+    const impact = target.role === UserRole.CITIZEN
+      ? 'Their crime reports, consumer complaints, SOS records, and case messages will also be deleted.'
+      : 'Cases assigned to this officer will remain and become unassigned.';
+    if (!window.confirm(`Delete ${target.fullName}'s account? ${impact} This action cannot be undone.`)) return;
+
+    setDeletingUserId(target.id);
+    try {
+      await ApiClient.deleteAdminUser(target.id);
+      setUsersList(current => current.filter(existing => existing.id !== target.id));
+      fetchAdminData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete user account.');
+    } finally {
+      setDeletingUserId(null);
     }
   };
 
@@ -1319,18 +1344,34 @@ Portal URL: ${window.location.origin}`;
                 key={u.id}
                 className="p-5 rounded-3xl bg-slate-900 border border-slate-800 space-y-3 shadow-lg"
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <span className="font-bold text-white text-sm font-display">{u.fullName}</span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300">
-                    {u.role}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300">
+                      {u.role}
+                    </span>
+                    {u.id !== user?.id && u.role !== UserRole.ADMIN && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteUser(u)}
+                        disabled={deletingUserId === u.id}
+                        aria-label={`Delete ${u.fullName} account`}
+                        title="Delete account"
+                        className="p-1.5 rounded-md text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 disabled:opacity-50 transition"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-1 text-xs text-slate-400">
                   <p>Email: <strong className="text-slate-300">{u.email}</strong></p>
                   <p>Phone: <strong className="text-slate-300">{u.phone}</strong></p>
                   <p>NID: <span className="font-mono text-slate-300">{u.nidNumber}</span></p>
-                  {u.stationOrThana && (
+                  {u.role === UserRole.CONSUMER_RIGHTS && u.assignedDistrict ? (
+                    <p>District: <span className="text-slate-300">{u.assignedDistrict}</span></p>
+                  ) : u.stationOrThana && (
                     <p>Station: <span className="text-slate-300">{u.stationOrThana}</span></p>
                   )}
                 </div>
@@ -1401,6 +1442,7 @@ Portal URL: ${window.location.origin}`;
                     } else {
                       setNewDesignation('');
                       setNewDepartment('');
+                      setConsumerDistrict('');
                       setNewStation('');
                     }
                   }}
@@ -1434,7 +1476,7 @@ Portal URL: ${window.location.origin}`;
                     type="text"
                     value={newPhone}
                     onChange={e => setNewPhone(formatAdminPhone(e.target.value))}
-                    placeholder="+88 01XXX-XXXXXX"
+                    placeholder="Enter mobile number"
                     aria-invalid={newPhone.replace(/\D/g, '').replace(/^880/, '').length > 10}
                     className="sx-input"
                     required
@@ -1601,9 +1643,9 @@ Portal URL: ${window.location.origin}`;
                         <input
                           type="text"
                           value={newDepartment}
-                          readOnly
+                          placeholder="Set automatically from assigned district"
                           className="sx-input"
-                          required
+                          readOnly
                         />
                       </div>
                     </div>
@@ -1747,10 +1789,12 @@ Portal URL: ${window.location.origin}`;
                   <span className="text-slate-400">Rank / Designation:</span>
                   <span className="text-slate-200">{provisionedSuccessData.user.designation || 'Officer'}</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Station / Jurisdiction:</span>
-                  <span className="text-slate-200 truncate max-w-[220px]">{provisionedSuccessData.user.stationOrThana}</span>
-                </div>
+                {provisionedSuccessData.user.role !== UserRole.CONSUMER_RIGHTS && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Station / Jurisdiction:</span>
+                    <span className="text-slate-200 truncate max-w-[220px]">{provisionedSuccessData.user.stationOrThana}</span>
+                  </div>
+                )}
                 {provisionedSuccessData.user.role === UserRole.CONSUMER_RIGHTS && provisionedSuccessData.user.assignedDistrict && (
                   <div className="flex items-center justify-between">
                     <span className="text-slate-400">Assigned DNCRP District:</span>
