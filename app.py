@@ -25,8 +25,8 @@ def create_app():
             "status": "OK",
             "platform": "SentinelX - AI-Assisted Public Safety & Consumer Protection Platform",
             "jurisdiction": "People's Republic of Bangladesh",
-            "backend": "Flask (Python 3)",
-            "databaseEngine": "PostgreSQL" if DB_ENGINE_TYPE == "POSTGRESQL" else "PostgreSQL (SQLite Local Mode)",
+            "databaseEngine": "PostgreSQL" if DB_ENGINE_TYPE == "POSTGRESQL" else "SQLite (sentinelx.db)",
+            "databaseConnected": True,
             "timestamp": utcnow_iso(),
         })
 
