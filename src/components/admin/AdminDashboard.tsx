@@ -105,6 +105,7 @@ export const AdminDashboard: React.FC = () => {
   const [newBadge, setNewBadge] = useState('');
   const [newDesignation, setNewDesignation] = useState('');
   const [newDepartment, setNewDepartment] = useState('');
+  const [consumerDistrict, setConsumerDistrict] = useState('');
   const [policeDistrict, setPoliceDistrict] = useState('Dhaka');
   const [policeThana, setPoliceThana] = useState('');
   const [newStation, setNewStation] = useState('');
@@ -301,6 +302,7 @@ Portal URL: ${window.location.origin}`;
         badgeNumber: newBadge,
         designation: newDesignation,
         department: newRole === UserRole.POLICE || newRole === UserRole.CONSUMER_RIGHTS ? newDepartment : undefined,
+        assignedDistrict: newRole === UserRole.CONSUMER_RIGHTS ? consumerDistrict : undefined,
         stationOrThana: newStation,
         password: newPassword
       });
@@ -322,6 +324,7 @@ Portal URL: ${window.location.origin}`;
         setNewBadge('');
         setNewDesignation('');
         setNewDepartment('');
+        setConsumerDistrict('');
         setPoliceThana('');
         setNewStation('');
         setNewPassword('');
@@ -1327,7 +1330,9 @@ Portal URL: ${window.location.origin}`;
                   <p>Email: <strong className="text-slate-300">{u.email}</strong></p>
                   <p>Phone: <strong className="text-slate-300">{u.phone}</strong></p>
                   <p>NID: <span className="font-mono text-slate-300">{u.nidNumber}</span></p>
-                  {u.stationOrThana && (
+                  {u.role === UserRole.CONSUMER_RIGHTS && u.assignedDistrict ? (
+                    <p>District: <span className="text-slate-300">{u.assignedDistrict}</span></p>
+                  ) : u.stationOrThana && (
                     <p>Station: <span className="text-slate-300">{u.stationOrThana}</span></p>
                   )}
                 </div>
@@ -1392,11 +1397,13 @@ Portal URL: ${window.location.origin}`;
                       setNewStation('');
                     } else if (selectedRole === UserRole.CONSUMER_RIGHTS) {
                       setNewDesignation('');
-                      setNewDepartment('National Market Surveillance Cell');
-                      setNewStation('National Directorate HQ, Dhaka');
+                      setNewDepartment('');
+                      setConsumerDistrict('');
+                      setNewStation('');
                     } else {
                       setNewDesignation('');
                       setNewDepartment('');
+                      setConsumerDistrict('');
                       setNewStation('');
                     }
                   }}
@@ -1550,8 +1557,8 @@ Portal URL: ${window.location.origin}`;
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {newRole === UserRole.CONSUMER_RIGHTS && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {newRole === UserRole.CONSUMER_RIGHTS ? (
+                    <div className="space-y-3">
                       <div>
                         <label className="block font-semibold text-slate-300 mb-1">DNCRP Officer Category</label>
                         <select
@@ -1568,30 +1575,53 @@ Portal URL: ${window.location.origin}`;
                         </select>
                       </div>
                       <div>
+                        <label className="block font-semibold text-slate-300 mb-1">Assigned District</label>
+                        <select
+                          value={consumerDistrict}
+                          onChange={e => {
+                            const district = e.target.value;
+                            setConsumerDistrict(district);
+                            setNewDepartment(district ? `DNCRP Headquarter, ${district}` : '');
+                          }}
+                          className="sx-input"
+                          required
+                        >
+                          <option value="">Select district</option>
+                          {BANGLADESH_DIVISIONS.map(div => (
+                            <optgroup key={div.id} label={`${div.name} Division (${div.nameBn})`}>
+                              {div.districts.map(dist => (
+                                <option key={dist.id} value={dist.name}>
+                                  {dist.name} ({dist.nameBn})
+                                </option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
                         <label className="block font-semibold text-slate-300 mb-1">Department</label>
                         <input
                           type="text"
                           value={newDepartment}
-                          onChange={e => setNewDepartment(e.target.value)}
-                          placeholder="e.g. Consumer Rights Enforcement"
+                          placeholder="Set automatically from assigned district"
                           className="sx-input"
-                          required
+                          readOnly
                         />
                       </div>
                     </div>
+                  ) : (
+                    <div>
+                      <label className="block font-semibold text-slate-300 mb-1">Station / Department / Office</label>
+                      <input
+                        type="text"
+                        value={newStation}
+                        onChange={e => setNewStation(e.target.value)}
+                        placeholder="e.g. Department Headquarters"
+                        className="sx-input"
+                        required
+                      />
+                    </div>
                   )}
-
-                  <div>
-                    <label className="block font-semibold text-slate-300 mb-1">Station / Department / Office</label>
-                    <input
-                      type="text"
-                      value={newStation}
-                      onChange={e => setNewStation(e.target.value)}
-                      placeholder={newRole === UserRole.CONSUMER_RIGHTS ? 'e.g. National Directorate HQ, Dhaka' : 'e.g. Department Headquarters'}
-                      className="sx-input"
-                      required
-                    />
-                  </div>
                 </div>
               )}
 
@@ -1717,10 +1747,12 @@ Portal URL: ${window.location.origin}`;
                   <span className="text-slate-400">Rank / Designation:</span>
                   <span className="text-slate-200">{provisionedSuccessData.user.designation || 'Officer'}</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Station / Jurisdiction:</span>
-                  <span className="text-slate-200 truncate max-w-[220px]">{provisionedSuccessData.user.stationOrThana}</span>
-                </div>
+                {provisionedSuccessData.user.role !== UserRole.CONSUMER_RIGHTS && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Station / Jurisdiction:</span>
+                    <span className="text-slate-200 truncate max-w-[220px]">{provisionedSuccessData.user.stationOrThana}</span>
+                  </div>
+                )}
                 {provisionedSuccessData.user.role === UserRole.CONSUMER_RIGHTS && provisionedSuccessData.user.assignedDistrict && (
                   <div className="flex items-center justify-between">
                     <span className="text-slate-400">Assigned DNCRP District:</span>

@@ -135,6 +135,12 @@ def create_user():
         return jsonify({"error": "Missing mandatory user fields (Full Name, NID, Email, Phone, Role)."}), 400
     if role == "CONSUMER_RIGHTS" and not designation:
         return jsonify({"error": "DNCRP officer category is required."}), 400
+    if role == "CONSUMER_RIGHTS":
+        assigned_district = str(assigned_district or "").strip()
+        if not assigned_district:
+            return jsonify({"error": "Select a district for this DNCRP officer."}), 400
+        department = f"DNCRP Headquarter, {assigned_district}"
+        station_or_thana = f"DNCRP {assigned_district} District Office"
 
     # Auto-generate temporary password if omitted or empty
     temporary_password = str(password or "").strip()

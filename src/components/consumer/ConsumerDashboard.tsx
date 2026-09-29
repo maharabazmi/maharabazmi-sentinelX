@@ -59,9 +59,9 @@ export const ConsumerDashboard: React.FC = () => {
   ].includes(officerCategory)
     ? officerCategory
     : (officerCategory || 'Deputy Director');
-  const consumerJurisdictionLabel = (user?.stationOrThana || 'National Directorate HQ, Dhaka')
-    .replace(/Model Police Station\s*\(DMP\)/gi, 'Circle Office, Dhaka')
-    .replace(/Police Station/gi, 'Circle Office');
+  const consumerDepartmentLabel = user?.assignedDistrict
+    ? `DNCRP Headquarter, ${user.assignedDistrict}`
+    : (user?.department || 'District not assigned');
   const consumerBadgeLabel = (!user?.badgeNumber || user.badgeNumber.endsWith('-') || user.badgeNumber.startsWith('BP-') || user.badgeNumber.startsWith('DMP-'))
     ? `DNCRP-${(user?.id || '84920').slice(-5).toUpperCase()}`
     : user.badgeNumber;
@@ -277,7 +277,10 @@ export const ConsumerDashboard: React.FC = () => {
 
   const formatOfficerOptionLabel = (officer: any) => {
     const name = officer?.fullName || officer?.name || 'Unknown Officer';
+    const district = officer?.assignedDistrict || '';
     const station = officer?.stationOrThana?.trim();
+    if (district && station) return `${name} (${district} District - ${station})`;
+    if (district) return `${name} (${district} District)`;
     return station ? `${name} (${station})` : name;
   };
 
@@ -446,7 +449,7 @@ export const ConsumerDashboard: React.FC = () => {
             </h1>
 
             <p className="text-xs text-slate-400 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono">
-              <span>Jurisdiction: <strong className="text-slate-200">{consumerJurisdictionLabel}</strong></span>
+              <span>Department: <strong className="text-slate-200">{consumerDepartmentLabel}</strong></span>
               <span>•</span>
               <span>Designation: <strong className="text-slate-200">{authorityCategoryLabel}</strong></span>
               <span>•</span>

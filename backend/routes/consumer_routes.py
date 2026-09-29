@@ -4,7 +4,6 @@ from ..database import get_db
 from ..models import (
     User,
     ConsumerComplaint,
-    ShopReputation,
     BarcodeVerification,
     utcnow_iso,
 )
@@ -13,8 +12,9 @@ from ..services.notification_service import NotificationService
 from ..services.audit_service import AuditService
 from ..services.jurisdiction_service import (
     is_consumer_in_jurisdiction,
-    get_consumer_officer_district,
     is_consumer_district_match,
+    normalize_consumer_district,
+    get_consumer_officer_district,
     parse_consumer_jurisdiction,
     is_same_thana,
 )
@@ -27,33 +27,20 @@ consumer_bp = Blueprint("consumer", __name__, url_prefix="/api/consumer")
 def check_consumer_access():
     return require_roles("CONSUMER_RIGHTS", "ADMIN")(lambda: None)()
 
-def _officer_matches_complaint(user, complaint, all_complaints=None):
-    """Check if a DNCRP officer has jurisdiction or assignment over a complaint."""
+def _officer_matches_complaint(user, complaint):
+    """DNCRP officers can access complaints only within their assigned district."""
     if not user or user.role != "CONSUMER_RIGHTS":
         return True
-    # 1. Explicit assignment always matches
-    if complaint.assignedOfficerId and complaint.assignedOfficerId == user.id:
-        return True
-    if complaint.assignedOfficerName and user.fullName and user.fullName.strip().lower() == complaint.assignedOfficerName.strip().lower():
-        return True
-    # 2. Station/Thana jurisdiction check (handles National/Central HQ, Dhaka, Thana match)
-    station = user.stationOrThana or ""
-    if station and is_consumer_in_jurisdiction(station, complaint.shopThana, complaint.shopDistrict):
-        return True
-    # 3. Assigned district check
-    intake_district = get_consumer_officer_district(user)
-    if not intake_district or is_consumer_district_match(intake_district, complaint.shopDistrict):
-        return True
-    # 4. Zero-match fallback: if no complaint in the entire DB matches the officer's assignedDistrict,
-    # fall back to True so officers do not see a completely blank 0/0/0 console.
-    if all_complaints is not None:
-        has_any_district_case = any(
-            is_consumer_district_match(intake_district, c.shopDistrict)
-            for c in all_complaints
-        )
-        if not has_any_district_case:
-            return True
-    return False
+    if not complaint or not complaint.shopDistrict:
+        return False
+    officer_district = get_consumer_officer_district(user)
+    if not officer_district:
+        return False
+    return is_consumer_district_match(officer_district, complaint.shopDistrict)
+
+
+def _assigned_dncrp_district(user):
+    return get_consumer_officer_district(user)
 
 # 1. DNCRP Dashboard Summary (Strict Jurisdiction & Zero-Baseline Awareness)
 @consumer_bp.route("/dashboard-summary", methods=["GET"])
@@ -63,67 +50,50 @@ def dashboard_summary():
 
     with get_db() as db:
         all_complaints = db.query(ConsumerComplaint).all()
-        all_shops = db.query(ShopReputation).all()
 
         if user.role == "CONSUMER_RIGHTS":
             station = user.stationOrThana or ""
             designation = (user.designation or '').strip().casefold()
             is_intake_officer = designation == "complaint intake officer"
-            district_matches = lambda complaint: _officer_matches_complaint(user, complaint, all_complaints)
+            district_matches = lambda complaint: _officer_matches_complaint(user, complaint)
             thana_kw, dist_kw = parse_consumer_jurisdiction(station)
 
             # 1. New Grievance Claims:
             # Submitted or under-review claims routed to officer's jurisdiction or claimed by this intake officer
             new_complaints = len([
                 c for c in all_complaints
-                if c.status in ("SUBMITTED", "UNDER_REVIEW") and (
-                    (is_intake_officer and district_matches(c) and (c.workflowQueue or "INTAKE") == "INTAKE") or
-                    (not is_intake_officer and (c.assignedOfficerId == user.id or district_matches(c)))
+                if district_matches(c) and c.status in ("SUBMITTED", "UNDER_REVIEW") and (
+                    not is_intake_officer or (c.workflowQueue or "INTAKE") == "INTAKE"
                 )
             ])
 
             # 2. Under Review:
             under_review = len([
                 c for c in all_complaints
-                if c.status == "UNDER_REVIEW" and (
-                    (is_intake_officer and district_matches(c) and (c.workflowQueue or "INTAKE") == "INTAKE") or
-                    (not is_intake_officer and (c.assignedOfficerId == user.id or district_matches(c)))
+                if district_matches(c) and c.status == "UNDER_REVIEW" and (
+                    not is_intake_officer or (c.workflowQueue or "INTAKE") == "INTAKE"
                 )
             ])
 
             # 3. Field Investigations:
             active_investigations = len([
                 c for c in all_complaints
-                if c.status in ("VERIFIED", "INVESTIGATION", "INVESTIGATION_SUMMARY", "ADJUDICATION_REVIEW", "FINAL_DECISION") and (
-                    c.assignedOfficerId == user.id or
-                    (c.assignedOfficerName and user.fullName.strip().lower() == c.assignedOfficerName.strip().lower()) or
-                    district_matches(c)
-                )
+                if district_matches(c) and c.status in ("VERIFIED", "INVESTIGATION", "INVESTIGATION_SUMMARY", "ADJUDICATION_REVIEW", "FINAL_DECISION")
             ])
 
             # 4. Resolved Cases:
             resolved_cases = len([
                 c for c in all_complaints
-                if c.status == "RESOLVED" and (
-                    c.assignedOfficerId == user.id or
-                    (c.assignedOfficerName and user.fullName.strip().lower() == c.assignedOfficerName.strip().lower()) or
-                    district_matches(c)
-                )
+                if district_matches(c) and c.status == "RESOLVED"
             ])
-
-            # 5. Penalized Establishments:
-            jurisdiction_shops = [
-                s for s in all_shops
-                if is_consumer_in_jurisdiction(station, s.thana, s.district)
-            ] or all_shops
-            penalized_shops = len([s for s in jurisdiction_shops if s.verifiedFinesCount > 0])
-            total_registered_shops = len(jurisdiction_shops)
 
             # Counts for queue scope tabs
             my_assigned_count = len([
                 c for c in all_complaints
-                if c.assignedOfficerId == user.id or
-                (c.assignedOfficerName and user.fullName.strip().lower() == c.assignedOfficerName.strip().lower())
+                if district_matches(c) and (
+                    c.assignedOfficerId == user.id or
+                    (c.assignedOfficerName and user.fullName.strip().lower() == c.assignedOfficerName.strip().lower())
+                )
             ])
             unassigned_in_station = len([
                 c for c in all_complaints
@@ -143,8 +113,6 @@ def dashboard_summary():
                     "underReview": under_review,
                     "activeInvestigations": active_investigations,
                     "resolvedCases": resolved_cases,
-                    "totalRegisteredShops": total_registered_shops,
-                    "penalizedShopsCount": penalized_shops,
                     "myAssignedCount": my_assigned_count,
                     "unassignedJurisdictionCount": unassigned_in_station,
                     "jurisdiction": station or "National Directorate HQ",
@@ -158,8 +126,6 @@ def dashboard_summary():
             under_review = len([c for c in all_complaints if c.status == "UNDER_REVIEW"])
             active_investigations = len([c for c in all_complaints if c.status in ("VERIFIED", "INVESTIGATION", "INVESTIGATION_SUMMARY", "ADJUDICATION_REVIEW", "FINAL_DECISION")])
             resolved_cases = len([c for c in all_complaints if c.status == "RESOLVED"])
-            penalized_shops = len([s for s in all_shops if s.verifiedFinesCount > 0])
-
             return jsonify({
                 "success": True,
                 "stats": {
@@ -167,8 +133,6 @@ def dashboard_summary():
                     "underReview": under_review,
                     "activeInvestigations": active_investigations,
                     "resolvedCases": resolved_cases,
-                    "totalRegisteredShops": len(all_shops),
-                    "penalizedShopsCount": penalized_shops,
                     "myAssignedCount": len(all_complaints),
                     "unassignedJurisdictionCount": len([c for c in all_complaints if not c.assignedOfficerId]),
                     "jurisdiction": "National Directorate HQ (All Divisions)",
@@ -206,7 +170,7 @@ def get_complaints():
         if user.role == "CONSUMER_RIGHTS":
             designation = (user.designation or '').strip().casefold()
             is_intake_officer = designation == "complaint intake officer"
-            district_matches = lambda complaint: _officer_matches_complaint(user, complaint, all_records)
+            district_matches = lambda complaint: _officer_matches_complaint(user, complaint)
             if is_intake_officer:
                 # Intake retains Intake Queue, Rejected, and Handed Over (Investigation/Adjudication) records for its 3 tabs.
                 filtered = [
@@ -220,16 +184,22 @@ def get_complaints():
             elif designation == "investigation officer":
                 filtered = [
                     c for c in all_records
-                    if c.assignedOfficerId == user.id or
-                    (district_matches(c) and (c.workflowQueue in ("INVESTIGATION", "ADJUDICATION") or c.status in ("INVESTIGATION", "UNDER_REVIEW", "INVESTIGATION_SUMMARY"))) or
-                    any("Investigation" in (event.get("note") or "") for event in c.timeline)
+                    if district_matches(c) and (
+                        c.assignedOfficerId == user.id or
+                        c.workflowQueue in ("INVESTIGATION", "ADJUDICATION") or
+                        c.status in ("INVESTIGATION", "UNDER_REVIEW", "INVESTIGATION_SUMMARY") or
+                        any("Investigation" in (event.get("note") or "") for event in c.timeline)
+                    )
                 ]
             elif designation == "adjudication officer":
                 filtered = [
                     c for c in all_records
-                    if c.assignedOfficerId == user.id or
-                    (district_matches(c) and (c.workflowQueue in ("ADJUDICATION", "COMPLETED") or c.status in ("INVESTIGATION_SUMMARY", "ADJUDICATION_REVIEW", "FINAL_DECISION", "RESOLVED"))) or
-                    any("Adjudication" in (event.get("note") or "") for event in c.timeline)
+                    if district_matches(c) and (
+                        c.assignedOfficerId == user.id or
+                        c.workflowQueue in ("ADJUDICATION", "COMPLETED") or
+                        c.status in ("INVESTIGATION_SUMMARY", "ADJUDICATION_REVIEW", "FINAL_DECISION", "RESOLVED") or
+                        any("Adjudication" in (event.get("note") or "") for event in c.timeline)
+                    )
                 ]
             else:
                 # Default "jurisdiction" / supervisory overview for Supervising Authorities:
@@ -238,10 +208,7 @@ def get_complaints():
                 # retain accurate counts and never drop to 0 when switching tabs.
                 filtered = [
                     c for c in all_records
-                    if is_consumer_in_jurisdiction(station, c.shopThana, c.shopDistrict) or
-                    district_matches(c) or
-                    c.assignedOfficerId == user.id or
-                    (c.assignedOfficerName and user.fullName.strip().lower() == c.assignedOfficerName.strip().lower())
+                    if district_matches(c)
                 ]
         else:
             # ADMIN can view by scope or nationwide
@@ -271,6 +238,27 @@ def get_complaints():
             "scope": scope
         })
 
+# 2b. Get Single Consumer Complaint (District Access Controlled)
+@consumer_bp.route("/complaints/<complaint_id>", methods=["GET"])
+def get_single_complaint(complaint_id):
+    user = g.user
+    with get_db() as db:
+        complaint = db.query(ConsumerComplaint).filter(
+            (ConsumerComplaint.id == complaint_id) | (ConsumerComplaint.trackingNumber == complaint_id)
+        ).first()
+        if not complaint:
+            return jsonify({"error": "Complaint not found."}), 404
+
+        if user.role == "CONSUMER_RIGHTS" and not _officer_matches_complaint(user, complaint):
+            return jsonify({
+                "error": f"Access Denied: Dispute [{complaint.trackingNumber}] in {complaint.shopDistrict} is outside your authorized district."
+            }), 403
+
+        return jsonify({
+            "success": True,
+            "complaint": complaint.to_dict()
+        })
+
 # 3. Claim Dispute Investigation (Take Charge)
 @consumer_bp.route("/complaints/<complaint_id>/claim", methods=["POST"])
 def claim_complaint(complaint_id):
@@ -283,6 +271,8 @@ def claim_complaint(complaint_id):
 
         if user.role != "CONSUMER_RIGHTS":
             return jsonify({"error": "Only DNCRP officers can accept a dispute."}), 403
+        if not _officer_matches_complaint(user, complaint):
+            return jsonify({"error": "This dispute is outside your assigned district."}), 403
         if officer_category == "complaint intake officer":
             return jsonify({"error": "Complaint Intake Officers review, hand over, or reject disputes; they do not take charge of cases."}), 403
         elif officer_category == "investigation officer":
@@ -374,7 +364,6 @@ def update_complaint_status(complaint_id):
             return jsonify({"error": "Complaint not found."}), 404
 
         if user.role == "CONSUMER_RIGHTS":
-            all_complaints_for_check = db.query(ConsumerComplaint).all()
             normalized_category = officer_category.casefold()
             is_supervisor = normalized_category not in ("complaint intake officer", "investigation officer", "adjudication officer")
             workflow_category = (
@@ -390,10 +379,9 @@ def update_complaint_status(complaint_id):
             )
             if workflow_category != "Adjudication Officer" and (penalty_imposed is not None or reward_amount is not None or status in ("FINAL_DECISION", "RESOLVED")):
                 return jsonify({"error": "Only an Adjudication Officer can record final findings, fines, or citizen compensation."}), 403
-            in_jur = _officer_matches_complaint(user, complaint, all_complaints_for_check)
+            in_jur = _officer_matches_complaint(user, complaint)
             is_assigned = (complaint.assignedOfficerId == user.id or (complaint.assignedOfficerName and user.fullName.strip().lower() == complaint.assignedOfficerName.strip().lower()))
-            can_intake_review = workflow_category == "Complaint Intake Officer" and complaint.status in ("SUBMITTED", "UNDER_REVIEW") and in_jur
-            if not in_jur and not is_assigned and not can_intake_review:
+            if not in_jur:
                 return jsonify({"error": f"Access Denied: Dispute in {complaint.shopThana}, {complaint.shopDistrict} is outside your operational jurisdiction."}), 403
 
             if handoff_officer_id:
@@ -427,6 +415,12 @@ def update_complaint_status(complaint_id):
                 ).first()
                 if not handoff_officer:
                     return jsonify({"error": f"Select a valid {handoff_rule['target_role']} for handover."}), 400
+                actor_district = _assigned_dncrp_district(user)
+                target_district = _assigned_dncrp_district(handoff_officer)
+                if not actor_district or not is_consumer_district_match(actor_district, target_district):
+                    return jsonify({"error": f"Cases can only be handed over to a {handoff_rule['target_role']} in your assigned district."}), 403
+                if not _officer_matches_complaint(handoff_officer, complaint):
+                    return jsonify({"error": f"Target {handoff_rule['target_role']} is in a different district from the complaint."}), 403
                 if workflow_category == "Investigation Officer":
                     if not inspector_notes and not complaint.investigationSummary:
                         return jsonify({"error": "Submit an investigation summary before handing over the case."}), 400
@@ -533,23 +527,6 @@ def update_complaint_status(complaint_id):
         })
         complaint.timeline = timeline
 
-        # Adjust Shop Trust Score if resolved with penalty
-        shop = None
-        if complaint.tradeLicenseOrBIN:
-            shop = db.query(ShopReputation).filter(ShopReputation.tradeLicenseOrBIN == complaint.tradeLicenseOrBIN).first()
-        if not shop:
-            shop = db.query(ShopReputation).filter(ShopReputation.shopName.ilike(complaint.shopName)).first()
-
-        if shop and status == "RESOLVED" and penalty_imposed:
-            shop.verifiedFinesCount += 1
-            shop.resolvedComplaints += 1
-            shop.lastInspectedAt = utcnow_iso()
-            shop.trustScore = max(1.0, round(shop.trustScore - 0.4, 1))
-            if shop.trustScore < 2.0:
-                shop.complianceStatus = "SUSPENDED"
-            elif shop.trustScore < 3.5:
-                shop.complianceStatus = "UNDER_WATCH"
-
         db.commit()
         complaint_dict = complaint.to_dict()
 
@@ -633,6 +610,8 @@ def update_reward_status(complaint_id):
         complaint = db.query(ConsumerComplaint).filter(ConsumerComplaint.id == complaint_id).first()
         if not complaint:
             return jsonify({"error": "Complaint not found."}), 404
+        if user.role == "CONSUMER_RIGHTS" and not _officer_matches_complaint(user, complaint):
+            return jsonify({"error": "This dispute is outside your assigned district."}), 403
         current_status = complaint.rewardStatus or "FINE_COLLECTED"
         if transitions.get(current_status) != requested_status:
             return jsonify({"error": f"Reward cannot move from {current_status} to {requested_status}."}), 409
@@ -654,8 +633,15 @@ def update_reward_status(complaint_id):
 # 5. List DNCRP Officers for Station / Directorate
 @consumer_bp.route("/officers", methods=["GET"])
 def get_officers():
+    user = g.user
     with get_db() as db:
         officers = db.query(User).filter(User.role == "CONSUMER_RIGHTS").all()
+        if user.role == "CONSUMER_RIGHTS":
+            assigned_district = _assigned_dncrp_district(user)
+            officers = [
+                officer for officer in officers
+                if assigned_district and _assigned_dncrp_district(officer) == assigned_district
+            ]
         return jsonify({
             "success": True,
             "officers": [
@@ -666,85 +652,13 @@ def get_officers():
                     "designation": o.designation,
                     "department": o.department,
                     "stationOrThana": o.stationOrThana,
+                    "assignedDistrict": o.assignedDistrict,
                 }
                 for o in officers
             ]
         })
 
-# 6. Shop Directory & Trust Scores
-@consumer_bp.route("/shops", methods=["GET"])
-def get_shops():
-    user = g.user
-    scope = request.args.get("scope", "all")
-    station = user.stationOrThana or ""
-
-    with get_db() as db:
-        all_shops = db.query(ShopReputation).order_by(ShopReputation.trustScore.desc()).all()
-        if user.role == "CONSUMER_RIGHTS" and scope == "jurisdiction":
-            shops = [s for s in all_shops if is_consumer_in_jurisdiction(station, s.thana, s.district)]
-        else:
-            shops = all_shops
-
-        return jsonify({
-            "success": True,
-            "shops": [s.to_dict() for s in shops]
-        })
-
-@consumer_bp.route("/shops", methods=["POST"])
-def register_shop():
-    user = g.user
-    data = request.get_json() or {}
-    shop_name = data.get("shopName")
-    trade_license = data.get("tradeLicenseOrBIN")
-    address = data.get("address")
-    district = data.get("district")
-    thana = data.get("thana")
-    category = data.get("category", "General Merchandise")
-    compliance_status = data.get("complianceStatus", "GOOD")
-
-    if not shop_name or not trade_license or not district or not thana:
-        return jsonify({"error": "Shop name, BIN/Trade License, and location are required."}), 400
-
-    shop_id = f"shop-{int(time.time() * 1000)}"
-    new_shop = ShopReputation(
-        id=shop_id,
-        shopName=shop_name.strip(),
-        tradeLicenseOrBIN=trade_license.strip(),
-        address=address.strip() if address else f"{thana}, {district}",
-        district=district.strip(),
-        thana=thana.strip(),
-        category=category,
-        trustScore=4.5,
-        totalComplaints=0,
-        resolvedComplaints=0,
-        verifiedFinesCount=0,
-        lastInspectedAt=utcnow_iso(),
-        complianceStatus=compliance_status,
-    )
-
-    with get_db() as db:
-        db.add(new_shop)
-        db.commit()
-        shop_dict = new_shop.to_dict()
-
-    AuditService.log(
-        user_id=user.id,
-        user_name=user.fullName,
-        user_role=user.role,
-        action="REGISTER_MERCHANT_ESTABLISHMENT",
-        resource=trade_license,
-        resource_id=shop_id,
-        ip_address=request.remote_addr,
-        status="SUCCESS",
-        details=f"New merchant registered into DNCRP Surveillance index: [{shop_name}].",
-    )
-
-    return jsonify({
-        "success": True,
-        "shop": shop_dict
-    }), 201
-
-# 5. Barcode Product Registry
+# Barcode Product Registry
 @consumer_bp.route("/barcodes", methods=["GET"])
 def get_barcodes():
     with get_db() as db:
