@@ -40,6 +40,15 @@ const birthYears = Array.from(
   (_, index) => String(new Date().getFullYear() - index)
 );
 
+const formatPhone = (value: string) => {
+  let digits = value.replace(/\D/g, '');
+  if (digits.startsWith('0088')) digits = digits.slice(4);
+  else if (digits.startsWith('88')) digits = digits.slice(2);
+  if (digits && !digits.startsWith('0')) digits = `0${digits}`;
+  digits = digits.slice(0, 11);
+  return digits ? `+88 ${digits.slice(0, 5)}${digits.length > 5 ? `-${digits.slice(5)}` : ''}` : '';
+};
+
 export const RegisterWizard: React.FC<RegisterWizardProps> = ({
   isOpen,
   onClose,
@@ -533,7 +542,8 @@ export const RegisterWizard: React.FC<RegisterWizardProps> = ({
                 <input
                   type="text"
                   value={phone}
-                  onChange={e => setPhone(e.target.value)}
+                  onChange={e => setPhone(formatPhone(e.target.value))}
+                  placeholder="Enter mobile number"
                   className="sx-input"
                   required
                 />

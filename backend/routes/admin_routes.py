@@ -9,7 +9,9 @@ from ..models import (
     EmergencyAlert,
     SOSRequest,
     ConsumerComplaint,
+    CaseMessage,
     AuditLog,
+    NotificationItem,
     normalize_email,
     normalize_nid,
     normalize_phone,
@@ -86,6 +88,77 @@ def get_users():
             "users": [u.to_dict() for u in users]
         })
 
+@admin_bp.route("/users/<user_id>", methods=["DELETE"])
+def delete_user(user_id):
+    admin_user = g.user
+    if user_id == admin_user.id:
+        return jsonify({"error": "You cannot delete your own account."}), 403
+
+    with get_db() as db:
+        target = db.query(User).filter(User.id == user_id).first()
+        if not target:
+            return jsonify({"error": "User not found."}), 404
+        if target.role == "ADMIN":
+            return jsonify({"error": "Admin accounts cannot be deleted from the directory."}), 403
+
+        deleted_name = target.fullName
+        owned_reports = db.query(CrimeReport.caseId, CrimeReport.id).filter(
+            CrimeReport.reporterId == target.id
+        ).all()
+        owned_complaints = db.query(ConsumerComplaint.trackingNumber, ConsumerComplaint.id).filter(
+            ConsumerComplaint.complainantId == target.id
+        ).all()
+        owned_case_ids = {
+            case_id
+            for record in (*owned_reports, *owned_complaints)
+            for case_id in record
+            if case_id
+        }
+
+        db.query(CrimeReport).filter(CrimeReport.assignedOfficerId == target.id).update(
+            {
+                CrimeReport.assignedOfficerId: None,
+                CrimeReport.assignedOfficerName: None,
+                CrimeReport.assignedOfficerBadge: None,
+                CrimeReport.assignedOfficerStation: None,
+            },
+            synchronize_session=False,
+        )
+        db.query(CrimeReport).filter(CrimeReport.verifiedByOfficerId == target.id).update(
+            {CrimeReport.verifiedByOfficerId: None},
+            synchronize_session=False,
+        )
+        db.query(ConsumerComplaint).filter(ConsumerComplaint.assignedOfficerId == target.id).update(
+            {
+                ConsumerComplaint.assignedOfficerId: None,
+                ConsumerComplaint.assignedOfficerName: None,
+            },
+            synchronize_session=False,
+        )
+
+        if owned_case_ids:
+            db.query(CaseMessage).filter(CaseMessage.caseId.in_(owned_case_ids)).delete(synchronize_session=False)
+        db.query(CaseMessage).filter(CaseMessage.senderId == target.id).delete(synchronize_session=False)
+        db.query(CrimeReport).filter(CrimeReport.reporterId == target.id).delete(synchronize_session=False)
+        db.query(ConsumerComplaint).filter(ConsumerComplaint.complainantId == target.id).delete(synchronize_session=False)
+        db.query(SOSRequest).filter(SOSRequest.citizenId == target.id).delete(synchronize_session=False)
+        db.query(NotificationItem).filter(NotificationItem.userId == target.id).delete(synchronize_session=False)
+        db.delete(target)
+        db.commit()
+
+    AuditService.log(
+        user_id=admin_user.id,
+        user_name=admin_user.fullName,
+        user_role=admin_user.role,
+        action="DELETE_USER_ACCOUNT",
+        resource=deleted_name,
+        resource_id=user_id,
+        ip_address=request.remote_addr,
+        status="SUCCESS",
+        details=f"Admin deleted account [{deleted_name}] with ID [{user_id}].",
+    )
+    return jsonify({"success": True, "deletedUserId": user_id})
+
 @admin_bp.route("/users/<user_id>/assigned-district", methods=["PATCH"])
 def update_user_assigned_district(user_id):
     data = request.get_json() or {}
@@ -135,6 +208,12 @@ def create_user():
         return jsonify({"error": "Missing mandatory user fields (Full Name, NID, Email, Phone, Role)."}), 400
     if role == "CONSUMER_RIGHTS" and not designation:
         return jsonify({"error": "DNCRP officer category is required."}), 400
+    if role == "CONSUMER_RIGHTS":
+        assigned_district = str(assigned_district or "").strip()
+        if not assigned_district:
+            return jsonify({"error": "Select a district for this DNCRP officer."}), 400
+        department = f"DNCRP Headquarter, {assigned_district}"
+        station_or_thana = f"DNCRP {assigned_district} District Office"
 
     # Auto-generate temporary password if omitted or empty
     temporary_password = str(password or "").strip()

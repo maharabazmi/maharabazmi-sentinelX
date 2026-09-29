@@ -180,7 +180,7 @@ def init_db():
                     added_count += 1
             for custom_cr in db.query(User).filter(User.role == "CONSUMER_RIGHTS").all():
                 st = (custom_cr.stationOrThana or "").lower()
-                if any(k in st for k in ("dhaka", "vatara", "hq", "central", "uttara", "gulshan", "dhanmondi", "mirpur", "motijheel")) and custom_cr.assignedDistrict != "Dhaka":
+                if not custom_cr.assignedDistrict and any(k in st for k in ("dhaka", "vatara", "hq", "central", "uttara", "gulshan", "dhanmondi", "mirpur", "motijheel")):
                     custom_cr.assignedDistrict = "Dhaka"
                     added_count += 1
             for c in records.get("complaints", []):
