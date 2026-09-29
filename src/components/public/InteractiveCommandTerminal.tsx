@@ -1,47 +1,122 @@
 import React, { useState } from 'react';
 import {
   Radio,
-  FileCheck2,
   Scale,
-  Sparkles,
   ShieldCheck,
-  AlertCircle,
-  ExternalLink,
-  ChevronRight,
   Zap,
   CheckCircle2,
-  Clock,
   MapPin,
-  QrCode
+  Barcode,
+  AlertTriangle,
+  Wifi,
+  WifiOff,
+  Mic,
+  ChevronRight
 } from 'lucide-react';
 
+interface BarcodeSample {
+  code: string;
+  label: string;
+  product: string;
+  brand: string;
+  mrp: number;
+  charged: number;
+  bstiStatus: 'VERIFIED' | 'COUNTERFEIT' | 'OVERPRICED';
+  licenseNo: string;
+  verdict: string;
+}
+
+interface AIPromptSample {
+  prompt: string;
+  badge: string;
+  intent: 'CRIME_REPORT' | 'CONSUMER_DISPUTE';
+  category: string;
+  severity: 'HIGH' | 'CRITICAL' | 'MEDIUM';
+  extractedLocation: string;
+  matchedJurisdiction: string;
+  actionLabel: string;
+}
+
 export const InteractiveCommandTerminal: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'sos' | 'gd' | 'dncrp' | 'ai'>('sos');
+  const [activeTab, setActiveTab] = useState<'sos' | 'bsti' | 'dncrp' | 'ai'>('sos');
   const [sosTriggered, setSosTriggered] = useState(false);
+  const [sosOfflineMode, setSosOfflineMode] = useState(false);
   const [fineAmount, setFineAmount] = useState<number>(50000);
-  const [selectedLegalQuestion, setSelectedLegalQuestion] = useState<string>(
-    'What is the legal penalty for mobile snatching under Penal Code Section 379?'
-  );
+
+  const barcodeSamples: BarcodeSample[] = [
+    {
+      code: '8901030491024',
+      label: 'Infant Milk Formula (Overpriced)',
+      product: 'Lactogen Infant Formula 400g',
+      brand: 'Nestlé BD Authorized',
+      mrp: 1850,
+      charged: 2450,
+      bstiStatus: 'OVERPRICED',
+      licenseNo: 'BSTI-CM-44910',
+      verdict: 'Genuine BSTI barcode, but merchant charged +৳600 (+32.4%) above statutory MRP. Eligible for 25% DNCRP reward claim.'
+    },
+    {
+      code: '8941100293841',
+      label: 'Soybean Oil 5L (Fake Barcode)',
+      product: 'Fortified Soybean Oil 5L',
+      brand: 'Unregistered Bottler',
+      mrp: 818,
+      charged: 920,
+      bstiStatus: 'COUNTERFEIT',
+      licenseNo: 'INVALID / NOT IN REGISTRY',
+      verdict: 'CRITICAL ALERT: Barcode prefix does not match any active BSTI certification. Suspected adulterated syndicate batch.'
+    },
+    {
+      code: '8941190012458',
+      label: 'Pasteurized Milk 1L (Verified)',
+      product: 'Aarong Dairy UHT Milk 1L',
+      brand: 'BRAC Dairy & Food Project',
+      mrp: 110,
+      charged: 110,
+      bstiStatus: 'VERIFIED',
+      licenseNo: 'BSTI-BDS-1702',
+      verdict: 'Authentic BSTI certified product sold at compliant statutory Maximum Retail Price (MRP).'
+    }
+  ];
+
+  const [selectedBarcode, setSelectedBarcode] = useState<BarcodeSample>(barcodeSamples[0]);
+
+  const aiPrompts: AIPromptSample[] = [
+    {
+      prompt: 'Someone snatched my bag and phone near fulbaria bus stand about 10 minutes ago.',
+      badge: 'Fulbaria Snatching',
+      intent: 'CRIME_REPORT',
+      category: 'THEFT_ROBBERY',
+      severity: 'HIGH',
+      extractedLocation: 'Fulbaria Bus Stand (24.6333° N, 90.2667° E)',
+      matchedJurisdiction: 'Fulbaria Police Station, Mymensingh',
+      actionLabel: '1-Click Auto-Fill Police Crime Docket'
+    },
+    {
+      prompt: 'A pharmacy in Uttara Sector 7 charged me 2450 taka for baby milk with printed MRP 1850.',
+      badge: 'Uttara MRP Gouging',
+      intent: 'CONSUMER_DISPUTE',
+      category: 'OVERPRICING (+৳600 Above MRP)',
+      severity: 'MEDIUM',
+      extractedLocation: 'Uttara Sector 7, Dhaka',
+      matchedJurisdiction: 'DNCRP Dhaka District Office (Uttara Thana)',
+      actionLabel: '1-Click Auto-Fill DNCRP 25% Reward Claim'
+    },
+    {
+      prompt: 'Amar dokane kichu lok chanda dabi korche Savar bazar area te, threat dicche.',
+      badge: 'Banglish Extortion',
+      intent: 'CRIME_REPORT',
+      category: 'EXTORTION / THREAT',
+      severity: 'CRITICAL',
+      extractedLocation: 'Savar Bazar (23.8483° N, 90.2574° E)',
+      matchedJurisdiction: 'Savar Model Thana, Dhaka',
+      actionLabel: '1-Click Auto-Fill Police Crime Docket'
+    }
+  ];
+
+  const [selectedPrompt, setSelectedPrompt] = useState<AIPromptSample>(aiPrompts[0]);
 
   const rewardAmount = Math.round(fineAmount * 0.25);
-
-  const legalAnswers: Record<string, { answer: string; section: string }> = {
-    'What is the legal penalty for mobile snatching under Penal Code Section 379?': {
-      section: 'Penal Code 1860, Sec 379',
-      answer:
-        'Theft carries imprisonment of either description for a term which may extend to 3 years, or with fine, or with both. Cognizable and non-bailable.',
-    },
-    'Can I lodge an official General Diary (GD) online for a lost passport or NID?': {
-      section: 'Police Regulations of Bengal (PRB)',
-      answer:
-        'Yes. Through SentinelX, citizen identity is verified via Porichoy biometric API, generating a tamper-proof cryptographic GD docket instantly recognized by immigration and banks.',
-    },
-    'What fine is imposed on shops selling goods above printed MRP?': {
-      section: 'Consumer Rights Protection Act 2009, Sec 40',
-      answer:
-        'Selling above official MRP is punishable with imprisonment up to 1 year or a fine up to BDT 50,000. 25% of any realized fine is rewarded directly to the reporting citizen.',
-    },
-  };
 
   return (
     <div className="w-full rounded-3xl bg-white dark:bg-gradient-to-b dark:from-[#0d1527]/95 dark:via-[#080d1a]/95 dark:to-[#04060c]/98 border border-slate-200 dark:border-[#02baff]/30 shadow-2xl shadow-[#0147bf]/20 dark:shadow-[#0147bf]/35 overflow-hidden backdrop-blur-xl relative group transition-colors duration-200 animate-glow-breathe">
@@ -85,16 +160,16 @@ export const InteractiveCommandTerminal: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('gd')}
+          onClick={() => setActiveTab('bsti')}
           className={`py-2 px-2 rounded-xl transition flex items-center justify-center gap-1.5 ${
-            activeTab === 'gd'
+            activeTab === 'bsti'
               ? 'bg-[#0147bf]/10 dark:bg-[#0147bf]/30 text-[#0147bf] dark:text-[#02baff] border border-[#0147bf]/30 dark:border-[#02baff]/40 shadow-sm font-bold'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white dark:hover:bg-white/5'
           }`}
         >
-          <FileCheck2 className="w-3.5 h-3.5 text-[#0147bf] dark:text-[#02baff]" />
-          <span className="hidden sm:inline">GD Docket</span>
-          <span className="sm:hidden">GD</span>
+          <Barcode className="w-3.5 h-3.5 text-[#0147bf] dark:text-[#02baff]" />
+          <span className="hidden sm:inline">BSTI Scanner</span>
+          <span className="sm:hidden">BSTI</span>
         </button>
 
         <button
@@ -118,56 +193,75 @@ export const InteractiveCommandTerminal: React.FC = () => {
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white dark:hover:bg-white/5'
           }`}
         >
-          <Sparkles className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-          <span className="hidden sm:inline">SentiBot AI</span>
+          <img src="/Logo/SentiBot-01.png" alt="Sentinel Prime" className="w-4 h-4 object-contain" />
+          <span className="hidden sm:inline">Sentinel Prime</span>
           <span className="sm:hidden">AI</span>
         </button>
       </div>
 
       {/* Tab Panels */}
-      <div className="p-5 min-h-[290px] flex flex-col justify-between">
-        {/* PANEL 1: SOS DISPATCH */}
+      <div className="p-5 min-h-[295px] flex flex-col justify-between">
+        {/* PANEL 1: SOS DISPATCH (LIVE GPS & OFFLINE STORE-AND-FORWARD) */}
         {activeTab === 'sos' && (
-          <div className="space-y-4 animate-in fade-in duration-300">
-            <div className="flex items-center justify-between">
+          <div className="space-y-3.5 animate-in fade-in duration-300">
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-xl bg-red-500/10 dark:bg-red-500/15 border border-red-500/30 text-red-600 dark:text-red-400">
                   <Radio className="w-4 h-4 animate-pulse" />
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-slate-900 dark:text-white font-['Orbitron']">
-                    Emergency Distress Routing Simulation
+                    SOS Radar & Store-and-Forward Outbox
                   </h4>
                   <p className="text-[11px] text-slate-600 dark:text-slate-400 font-sans">
-                    Live GPS triangulation with designated Thana command patrol
+                    Sub-second GPS Thana routing with offline auto-sync resilience
                   </p>
                 </div>
               </div>
-              <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">Target: Gulshan Division</span>
+
+              <button
+                type="button"
+                onClick={() => setSosOfflineMode(!sosOfflineMode)}
+                className={`px-2.5 py-1 rounded-lg border text-[10px] font-mono font-bold flex items-center gap-1.5 transition ${
+                  sosOfflineMode
+                    ? 'bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-300'
+                    : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400'
+                }`}
+                title="Toggle Offline Store-and-Forward Simulation"
+              >
+                {sosOfflineMode ? <WifiOff className="w-3 h-3" /> : <Wifi className="w-3 h-3" />}
+                <span>{sosOfflineMode ? 'OFFLINE OUTBOX' : 'ONLINE UPLINK'}</span>
+              </button>
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 space-y-3 font-mono text-xs">
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 space-y-2.5 font-mono text-xs">
               <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800 pb-2">
                 <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
-                  <MapPin className="w-3.5 h-3.5 text-red-500 dark:text-red-400" /> GPS Coordinates:
+                  <MapPin className="w-3.5 h-3.5 text-red-500 dark:text-red-400" /> GPS Telemetry:
                 </span>
-                <span className="text-slate-900 dark:text-white font-bold">23.8103° N, 90.4125° E</span>
+                <span className="text-slate-900 dark:text-white font-bold">23.7925° N, 90.4078° E (Gulshan)</span>
               </div>
 
               <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800 pb-2">
-                <span className="text-slate-500 dark:text-slate-400">Primary Assigned Unit:</span>
-                <span className="text-[#0147bf] dark:text-[#02baff] font-bold">DMP Sector-11 Mobile Patrol-4</span>
+                <span className="text-slate-500 dark:text-slate-400">Nearest Patrol Unit:</span>
+                <span className="text-[#0147bf] dark:text-[#02baff] font-bold">DMP Gulshan Patrol Alpha-4</span>
               </div>
 
               <div className="flex items-center justify-between text-slate-700 dark:text-slate-300">
-                <span className="text-slate-500 dark:text-slate-400">Distress Status:</span>
+                <span className="text-slate-500 dark:text-slate-400">Uplink Status:</span>
                 {sosTriggered ? (
-                  <span className="px-2 py-0.5 rounded-full bg-red-500/15 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/40 text-[10px] font-bold animate-pulse">
-                    ● DISPATCHING SI KAMRUL (ETA 4 MINS)
-                  </span>
+                  sosOfflineMode ? (
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/15 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 text-[10px] font-bold animate-pulse">
+                      ⚡ QUEUED IN LOCAL OUTBOX — AUTO-BURST ON RECONNECT
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full bg-red-500/15 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/40 text-[10px] font-bold animate-pulse">
+                      ● SI KAMRUL DISPATCHED (ETA 4 MINS)
+                    </span>
+                  )
                 ) : (
                   <span className="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold">
-                    READY ON STANDBY
+                    READY ON STANDBY ({sosOfflineMode ? 'OFFLINE BUFFER READY' : '650+ THANAS'})
                   </span>
                 )}
               </div>
@@ -183,58 +277,95 @@ export const InteractiveCommandTerminal: React.FC = () => {
                 }`}
               >
                 <Radio className="w-4 h-4 text-white" />
-                <span className="text-white">{sosTriggered ? 'RESET BEACON TEST' : 'TRIGGER DEMO DISTRESS BEACON'}</span>
+                <span className="text-white">
+                  {sosTriggered ? 'STAND DOWN / RESET BEACON' : 'TRIGGER DEMO DISTRESS BEACON'}
+                </span>
               </button>
             </div>
           </div>
         )}
 
-        {/* PANEL 2: GD DOCKET */}
-        {activeTab === 'gd' && (
-          <div className="space-y-4 animate-in fade-in duration-300">
+        {/* PANEL 2: BSTI BARCODE & MRP SYNDICATE SCANNER */}
+        {activeTab === 'bsti' && (
+          <div className="space-y-3.5 animate-in fade-in duration-300">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-xl bg-[#0147bf]/10 dark:bg-[#0147bf]/20 border border-[#0147bf]/30 dark:border-[#02baff]/40 text-[#0147bf] dark:text-[#02baff]">
-                  <FileCheck2 className="w-4 h-4" />
+                  <Barcode className="w-4 h-4" />
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-slate-900 dark:text-white font-['Orbitron']">
-                    Tamper-Proof General Diary (GD)
+                    BSTI Counterfeit & MRP Syndicate Scanner
                   </h4>
                   <p className="text-[11px] text-slate-600 dark:text-slate-400 font-sans">
-                    Cryptographically sealed by Central Cyber Crime Bureau
+                    Instant barcode verification against National BSTI & DNCRP price registry
                   </p>
                 </div>
               </div>
-              <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">SX-2026-GD8849</span>
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 space-y-2.5 font-mono text-xs">
-              <div className="flex items-center justify-between text-slate-700 dark:text-slate-300">
-                <span className="text-slate-500 dark:text-slate-400">Complainant NID:</span>
-                <span className="text-slate-900 dark:text-white font-bold">199226920150***** (Porichoy Verified)</span>
-              </div>
-              <div className="flex items-center justify-between text-slate-700 dark:text-slate-300">
-                <span className="text-slate-500 dark:text-slate-400">Incident Classification:</span>
-                <span className="text-[#0147bf] dark:text-[#02baff] font-bold">Theft / Electronic Snatching</span>
-              </div>
-              <div className="flex items-center justify-between text-slate-700 dark:text-slate-300">
-                <span className="text-slate-500 dark:text-slate-400">Jurisdiction Thana:</span>
-                <span className="text-slate-900 dark:text-white">Banani Model Thana, DMP</span>
-              </div>
-              <div className="pt-2 border-t border-slate-200 dark:border-slate-900 flex items-center justify-between text-[11px]">
-                <span className="text-slate-500">SHA-256 Digest:</span>
-                <span className="text-slate-600 dark:text-slate-400 truncate max-w-[200px]">
-                  9b2d8e41a0293f0b2401f89311029c...
+            {/* Interactive Barcode Sample Selector */}
+            <div className="flex flex-wrap gap-1.5">
+              {barcodeSamples.map(sample => (
+                <button
+                  key={sample.code}
+                  type="button"
+                  onClick={() => setSelectedBarcode(sample)}
+                  className={`text-[11px] px-2.5 py-1.5 rounded-lg border font-mono transition flex items-center gap-1.5 ${
+                    selectedBarcode.code === sample.code
+                      ? 'bg-[#0147bf]/15 dark:bg-[#02baff]/20 border-[#0147bf] dark:border-[#02baff] text-[#0147bf] dark:text-[#02baff] font-bold shadow-sm'
+                      : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Barcode className="w-3 h-3" />
+                  <span>{sample.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Live Scan Telemetry Result */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 space-y-2 font-mono text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-900 dark:text-white font-bold font-sans">
+                  {selectedBarcode.product}
                 </span>
+                {selectedBarcode.bstiStatus === 'VERIFIED' && (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
+                    ✓ BSTI & MRP COMPLIANT
+                  </span>
+                )}
+                {selectedBarcode.bstiStatus === 'OVERPRICED' && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40 text-[10px] font-bold">
+                    ⚠ MRP SYNDICATE OVERCHARGE
+                  </span>
+                )}
+                {selectedBarcode.bstiStatus === 'COUNTERFEIT' && (
+                  <span className="px-2 py-0.5 rounded-full bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/40 text-[10px] font-bold animate-pulse">
+                    ✕ FAKE BARCODE ALERT
+                  </span>
+                )}
               </div>
-            </div>
 
-            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-1 font-sans">
-              <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
-                <CheckCircle2 className="w-3.5 h-3.5" /> Legally admissible under Digital Evidence Act
-              </span>
-              <span className="font-mono text-slate-500">Instant PDF Receipt</span>
+              <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-200 dark:border-slate-800 text-[11px]">
+                <div>
+                  <span className="text-slate-500 block">Barcode / License</span>
+                  <span className="text-slate-800 dark:text-slate-200 font-semibold">{selectedBarcode.code}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Statutory MRP</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">৳{selectedBarcode.mrp} BDT</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Merchant Price</span>
+                  <span className={selectedBarcode.charged > selectedBarcode.mrp ? 'text-red-600 dark:text-red-400 font-bold' : 'text-slate-800 dark:text-slate-200 font-bold'}>
+                    ৳{selectedBarcode.charged} BDT
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-600 dark:text-slate-300 font-sans pt-1 border-t border-slate-200 dark:border-slate-900">
+                {selectedBarcode.verdict}
+              </p>
             </div>
           </div>
         )}
@@ -299,51 +430,73 @@ export const InteractiveCommandTerminal: React.FC = () => {
           </div>
         )}
 
-        {/* PANEL 4: SENTIBOT AI LEGAL COPILOT */}
+        {/* PANEL 4: SENTINEL PRIME AI (INTERACTIVE NLP INCIDENT-TO-THANA AUTO-FILL) */}
         {activeTab === 'ai' && (
-          <div className="space-y-3.5 animate-in fade-in duration-300">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-sky-500/10 dark:bg-sky-500/20 border border-sky-500/30 dark:border-sky-500/40 text-sky-600 dark:text-sky-400">
-                  <Sparkles className="w-4 h-4" />
+          <div className="space-y-3 animate-in fade-in duration-300">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/95 p-1 flex items-center justify-center shrink-0 border border-sky-500/30 dark:border-cyan-400/40 shadow-sm">
+                  <img src="/Logo/SentiBot-01.png" alt="Sentinel Prime" className="w-8 h-8 object-contain" />
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-slate-900 dark:text-white font-['Orbitron']">
-                    SentiBot AI Civic & Legal Copilot
+                    Sentinel Prime NLP & Nationwide Geocoding
                   </h4>
                   <p className="text-[11px] text-slate-600 dark:text-slate-400 font-sans">
-                    Trained on Bangladesh Penal Code, CrPC, and DNCRP 2009
+                    Voice/Text extraction mapped to 500+ Thanas & 64 Districts via Haversine GPS
                   </p>
                 </div>
               </div>
+              <span className="px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/30 text-sky-700 dark:text-sky-300 font-mono text-[10px] font-bold flex items-center gap-1 shrink-0">
+                <Mic className="w-3 h-3" /> EN / BN / Banglish
+              </span>
             </div>
 
-            {/* Quick Prompt Pills */}
+            {/* Interactive Incident Prompt Selector */}
             <div className="flex flex-wrap gap-1.5">
-              {Object.keys(legalAnswers).map(question => (
+              {aiPrompts.map(item => (
                 <button
-                  key={question}
-                  onClick={() => setSelectedLegalQuestion(question)}
-                  className={`text-left text-[11px] px-2.5 py-1.5 rounded-lg border transition ${
-                    selectedLegalQuestion === question
-                      ? 'bg-sky-500/15 dark:bg-sky-500/20 border-sky-400 text-sky-800 dark:text-sky-200 font-medium shadow-sm'
-                      : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800'
+                  key={item.badge}
+                  type="button"
+                  onClick={() => setSelectedPrompt(item)}
+                  className={`text-left text-[11px] px-2.5 py-1 rounded-lg border transition ${
+                    selectedPrompt.badge === item.badge
+                      ? 'bg-sky-500/15 dark:bg-sky-500/20 border-sky-400 text-sky-800 dark:text-sky-200 font-semibold shadow-sm'
+                      : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                   }`}
                 >
-                  {question.length > 40 ? question.slice(0, 40) + '...' : question}
+                  {item.badge}
                 </button>
               ))}
             </div>
 
-            {/* AI Response Card */}
-            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 space-y-1.5 text-xs font-sans">
-              <div className="flex items-center justify-between text-[11px] text-sky-700 dark:text-sky-400 font-mono font-medium">
-                <span>Reference: {legalAnswers[selectedLegalQuestion]?.section}</span>
-                <span className="text-slate-500 font-mono">AI Verified</span>
+            {/* Extracted Entity & Thana Routing Card */}
+            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 space-y-2 text-xs font-sans">
+              <div className="text-[11px] italic text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900/90 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800">
+                "{selectedPrompt.prompt}"
               </div>
-              <p className="text-slate-700 dark:text-slate-200 text-xs leading-relaxed">
-                {legalAnswers[selectedLegalQuestion]?.answer}
-              </p>
+
+              <div className="grid grid-cols-2 gap-2 text-[11px] font-mono pt-0.5">
+                <div>
+                  <span className="text-slate-500 block">Detected Classification:</span>
+                  <span className="text-[#0147bf] dark:text-[#02baff] font-bold">
+                    {selectedPrompt.category} ({selectedPrompt.severity})
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Auto-Routed Jurisdiction:</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                    {selectedPrompt.matchedJurisdiction}
+                  </span>
+                </div>
+              </div>
+
+              <div className="pt-1 flex items-center justify-between text-[11px] border-t border-slate-200 dark:border-slate-800">
+                <span className="text-slate-500 font-mono truncate">{selectedPrompt.extractedLocation}</span>
+                <span className="text-sky-700 dark:text-sky-400 font-bold flex items-center gap-0.5 shrink-0">
+                  {selectedPrompt.actionLabel} <ChevronRight className="w-3.5 h-3.5" />
+                </span>
+              </div>
             </div>
           </div>
         )}
