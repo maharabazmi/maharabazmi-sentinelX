@@ -51,25 +51,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
 
   return (
-<<<<<<< HEAD
-    <div className="w-full min-h-screen text-slate-100 selection:bg-[#02baff] selection:text-slate-950 font-sans">
-      {/* FUTURISTIC HERO SECTION (Inspired by Fixile AI Interface) */}
-      <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }} className="relative overflow-hidden pt-10 pb-16 sm:pb-20 border-b border-[#02baff]/15 bg-gradient-to-b from-[#05070e] via-[#080d1a] to-[#05070e]">
-        {/* Hologram radial background glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-gradient-to-b from-[#0147bf]/20 via-[#02baff]/10 to-transparent blur-3xl pointer-events-none -z-0" />
-
-        <div className="max-w-6xl mx-auto px-4 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
-            {/* Left Column: Mission & Controls */}
-            <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, delay: 0.2 }} className="lg:col-span-7 space-y-5 text-center lg:text-left">
-=======
     <div className="relative w-full min-h-screen text-slate-900 dark:text-slate-100 selection:bg-[#02baff] selection:text-slate-950 font-sans overflow-x-hidden bg-slate-50 dark:bg-[#05070e] transition-colors duration-250">
       {/* 1. CONTINUOUS INTERACTIVE CANVAS BACKGROUND */}
       <CyberCanvasBackground />
 
       {/* Cyber Grid Layer */}
       <div className="fixed inset-0 cyber-grid-pattern pointer-events-none opacity-40 z-0" />
->>>>>>> 6755c11 (modernize landing page)
 
       {/* Ambient Radial Glowing Orbs */}
       <div className="fixed top-[-100px] left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-gradient-to-b from-[#0147bf]/15 dark:from-[#0147bf]/25 via-[#02baff]/8 dark:via-[#02baff]/12 to-transparent blur-[120px] pointer-events-none -z-0" />
@@ -194,17 +181,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   </button>
                 </div>
               )}
-<<<<<<< HEAD
-            </motion.div>
-
-            {/* Right Column: Holographic Logo Showcase & Visual Terminal */}
-            <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, delay: 0.4 }} className="lg:col-span-5 flex flex-col items-center justify-center relative">
-              <div className="relative w-full max-w-sm aspect-square flex items-center justify-center">
-                {/* Orbital radar rings */}
-                <div className="hero-radar-pulse absolute inset-0 rounded-full border border-[#02baff]/20" />
-                <div className="hero-radar-orbit absolute inset-6 rounded-full border border-dashed border-[#0147bf]/35">
-                  <span className="absolute left-1/2 top-0 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#02baff] shadow-[0_0_14px_3px_rgba(2,186,255,0.55)]" />
-=======
 
               {/* High-Tech Telemetry Stats Grid - Statically Aligned */}
               <div className="grid grid-cols-3 gap-3 pt-4 max-w-lg mx-auto lg:mx-0">
@@ -215,7 +191,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   </div>
                   <div className="text-xl font-black text-slate-950 dark:text-white font-['Orbitron']">&lt; 1.2s</div>
                   <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-semibold">Ultra-fast Route</span>
->>>>>>> 6755c11 (modernize landing page)
                 </div>
 
                 <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-[#02baff]/25 backdrop-blur-md text-left shadow-sm shadow-[#0147bf]/10 dark:shadow-[#02baff]/10 transition-colors">
@@ -262,20 +237,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
         </div>
-      </motion.section>
+      </section>
 
-<<<<<<< HEAD
-      {/* CORE CAPABILITIES (Minimal, Futuristic, Less Text) */}
-      <motion.section initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-100px" }} transition={{ duration: 0.6 }} className="py-16 sm:py-20 max-w-6xl mx-auto px-4">
-        <div className="text-center max-w-2xl mx-auto mb-14 space-y-2">
-          <span className="text-xs font-['Orbitron'] uppercase tracking-widest text-[#02baff] font-bold">
-            PLATFORM CAPABILITIES
-          </span>
-          <h2 className="text-2xl sm:text-4xl font-black text-white font-['Orbitron']">
-=======
       {/* 4. FOUR PILLARS OF PUBLIC DEFENSE ARCHITECTURE */}
       <section className="py-20 max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
         <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
@@ -284,7 +250,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <span>NATIONWIDE COMMAND CAPABILITIES</span>
           </div>
           <h2 className="text-3xl sm:text-5xl font-black text-slate-950 dark:text-white font-['Orbitron'] tracking-tight">
->>>>>>> 6755c11 (modernize landing page)
             CIVIC DEFENSE ARCHITECTURE
           </h2>
           <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm">
@@ -425,21 +390,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
           </div>
         </div>
-      </motion.section>
+      </section>
 
-<<<<<<< HEAD
-      {/* EMERGENCY HOTLINES DIRECTORY (Modern Card Grid) */}
-      <motion.section initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-100px" }} transition={{ duration: 0.6 }} className="py-12 sm:py-14 bg-[#05070e] border-t border-[#02baff]/15">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-            <div>
-              <span className="text-[10px] font-['Orbitron'] text-[#02baff] uppercase tracking-widest font-bold block">
-                NATIONAL DIRECTORY
-              </span>
-              <h3 className="text-lg sm:text-2xl font-black text-white font-['Orbitron'] mt-0.5">
-                Government Emergency Hotlines
-              </h3>
-=======
       {/* 5. NATIONWIDE COMMAND & EMERGENCY HOTLINES MATRIX */}
       <section className="py-20 border-t border-slate-200 dark:border-[#02baff]/15 bg-slate-100/70 dark:bg-gradient-to-b dark:from-[#060a14]/90 dark:via-[#05070e] dark:to-[#04060c] relative z-10 transition-colors duration-250">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-12">
@@ -453,7 +405,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <h2 className="text-2xl sm:text-4xl font-black text-slate-950 dark:text-white font-['Orbitron'] tracking-tight">
                 COMMAND & REDRESS MATRIX
               </h2>
->>>>>>> 6755c11 (modernize landing page)
             </div>
             <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-mono max-w-md">
               Toll-free government emergency lines and automated Thana dispatch synchronized across all 64 districts.
@@ -569,7 +520,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
           </div>
         </div>
-      </motion.section>
+      </section>
     </div>
   );
 };
