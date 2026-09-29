@@ -23,6 +23,17 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 mock_nid_service = MockNIDVerificationService()
 porichoy_nid_service = PorichoyNIDVerificationService()
 
+from datetime import datetime, date
+
+def _is_at_least_18(dob_str: str) -> bool:
+    try:
+        dob_date = datetime.strptime(str(dob_str).strip()[:10], "%Y-%m-%d").date()
+        today = date.today()
+        age = today.year - dob_date.year - ((today.month, today.day) < (dob_date.month, dob_date.day))
+        return age >= 18
+    except Exception:
+        return False
+
 def check_password(password: str, hashed: str) -> bool:
     try:
         return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
@@ -43,6 +54,9 @@ def verify_nid():
 
     if not nid_number or not dob:
         return jsonify({"error": "NID Number and Date of Birth are mandatory for identity verification."}), 400
+
+    if not _is_at_least_18(dob):
+        return jsonify({"error": "You must be at least 18 years old to register with a Bangladesh National ID (NID)."}), 400
 
     try:
         service = porichoy_nid_service if use_porichoy_live else mock_nid_service
@@ -146,6 +160,7 @@ def verify_email_otp():
 def register():
     data = request.get_json() or {}
     nid_number = data.get("nidNumber")
+    dob = data.get("dob")
     password = data.get("password")
     full_name = data.get("fullName")
     phone = data.get("phone")
@@ -155,6 +170,9 @@ def register():
 
     if not nid_number or not password or not full_name or not phone:
         return jsonify({"error": "Missing required registration fields."}), 400
+
+    if dob and not _is_at_least_18(dob):
+        return jsonify({"error": "You must be at least 18 years old to register with a Bangladesh National ID (NID)."}), 400
 
     normalized_nid = normalize_nid(nid_number)
     with get_db() as db:

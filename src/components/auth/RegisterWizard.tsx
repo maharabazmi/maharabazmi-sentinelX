@@ -35,10 +35,34 @@ const birthMonths = [
   '05 - May', '06 - June', '07 - July', '08 - August',
   '09 - September', '10 - October', '11 - November', '12 - December'
 ];
+const maxEligibleBirthYear = new Date().getFullYear() - 18;
 const birthYears = Array.from(
-  { length: new Date().getFullYear() - 1899 },
-  (_, index) => String(new Date().getFullYear() - index)
+  { length: maxEligibleBirthYear - 1899 },
+  (_, index) => String(maxEligibleBirthYear - index)
 );
+
+const calculateAgeFromParts = (yearStr: string, monthStr: string, dayStr: string): number | null => {
+  if (!yearStr || yearStr.length !== 4) return null;
+  const year = Number(yearStr);
+  if (Number.isNaN(year)) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - year;
+
+  if (monthStr) {
+    const month = Number(monthStr);
+    const currentMonth = today.getMonth() + 1;
+    if (currentMonth < month) {
+      age -= 1;
+    } else if (currentMonth === month && dayStr) {
+      const day = Number(dayStr);
+      if (today.getDate() < day) {
+        age -= 1;
+      }
+    }
+  }
+  return age;
+};
 
 const formatPhone = (value: string) => {
   let digits = value.replace(/\D/g, '');
@@ -151,6 +175,8 @@ export const RegisterWizard: React.FC<RegisterWizardProps> = ({
   if (!isOpen) return null;
 
   const passwordsDoNotMatch = confirmPassword.length > 0 && password !== confirmPassword;
+  const currentAge = calculateAgeFromParts(dobYear, dobMonth, dobDay);
+  const isUnderage = currentAge !== null && currentAge < 18;
 
   // Step 1: Verify NID against National Registry
   const handleVerifyNID = async (e: React.FormEvent) => {
@@ -167,6 +193,12 @@ export const RegisterWizard: React.FC<RegisterWizardProps> = ({
 
     if (!isValidDob) {
       setError('Please select a valid date of birth.');
+      return;
+    }
+
+    const exactAge = calculateAgeFromParts(String(dobYearValue), String(dobMonthValue), String(dobDayValue));
+    if (exactAge === null || exactAge < 18) {
+      setError('You must be at least 18 years old to register with a Bangladesh National ID (NID).');
       return;
     }
 
@@ -417,7 +449,8 @@ export const RegisterWizard: React.FC<RegisterWizardProps> = ({
                   placeholder="Year"
                   inputMode="numeric"
                   pattern="[0-9]{4}"
-                  className="sx-input"
+                  aria-invalid={isUnderage}
+                  className={`sx-input ${isUnderage ? '!border-rose-500 ring-1 ring-rose-500/40' : ''}`}
                   aria-label="Birth year"
                   required
                 />
@@ -425,9 +458,16 @@ export const RegisterWizard: React.FC<RegisterWizardProps> = ({
                   {birthYears.map(year => <option key={year} value={year} />)}
                 </datalist>
               </div>
-              <p className="text-[11px] text-slate-400 mt-1">
-                Select day and month, then type or search for the birth year.
-              </p>
+              {isUnderage ? (
+                <p className="mt-1.5 text-xs font-semibold text-rose-400 flex items-center gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>You must be at least 18 years old to register (birth year must be {maxEligibleBirthYear} or earlier).</span>
+                </p>
+              ) : (
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Select day and month, then type or search for the birth year (must be 18+ years old).
+                </p>
+              )}
             </div>
 
             <button
