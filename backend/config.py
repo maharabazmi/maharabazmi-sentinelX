@@ -6,7 +6,7 @@ load_dotenv()
 class Config:
     DATABASE_URL = os.getenv(
         "DATABASE_URL",
-        "postgresql://user:password@localhost:5432/sentinelx_db?schema=public"
+        "sqlite:///sentinelx.db"
     )
     # Convert standard postgresql:// to postgresql+psycopg2:// for SQLAlchemy if needed
     clean_db_url = DATABASE_URL

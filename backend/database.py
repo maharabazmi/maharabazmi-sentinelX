@@ -10,17 +10,29 @@ logger = logging.getLogger("sentinelx.database")
 logging.basicConfig(level=logging.INFO)
 
 def create_database_engine():
-    pg_uri = Config.SQLALCHEMY_DATABASE_URI
+    db_uri = Config.SQLALCHEMY_DATABASE_URI
+
+    # 1. If explicitly configured for SQLite
+    if db_uri.startswith("sqlite"):
+        logger.info(f"[DB] Using local SQLite database engine ({db_uri})")
+        sqlite_engine = create_engine(
+            db_uri,
+            connect_args={"check_same_thread": False},
+            pool_pre_ping=True
+        )
+        return sqlite_engine, "SQLITE"
+
+    # 2. Try connecting to PostgreSQL
     try:
-        # Test connecting to PostgreSQL with short connection timeout
+        connect_args = {"connect_timeout": 3} if "postgres" in db_uri else {}
         test_engine = create_engine(
-            pg_uri,
-            connect_args={"connect_timeout": 3},
+            db_uri,
+            connect_args=connect_args,
             pool_pre_ping=True
         )
         with test_engine.connect() as conn:
             conn.execute(text("SELECT 1"))
-        logger.info(f"[DB] Connected to PostgreSQL database at {pg_uri.split('@')[-1]}")
+        logger.info(f"[DB] Connected to PostgreSQL database at {db_uri.split('@')[-1]}")
         return test_engine, "POSTGRESQL"
     except Exception as e:
         logger.warning(

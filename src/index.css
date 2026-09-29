@@ -503,9 +503,125 @@ html.light .hero-emblem-label,
 @media (prefers-reduced-motion: reduce) {
   .hero-radar-pulse,
   .hero-radar-orbit,
-  .hero-emblem-float {
-    animation: none;
+  .hero-emblem-float,
+  .animate-cyber-shimmer,
+  .animate-pulse-slow,
+  .animate-sonar {
+    animation: none !important;
   }
+}
+
+/* Futuristic Cyber Animations for Landing Page */
+@keyframes cyber-shimmer {
+  0% { transform: translateX(-150%) skewX(-20deg); }
+  50%, 100% { transform: translateX(250%) skewX(-20deg); }
+}
+
+@keyframes cyber-pulse-slow {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 0.75; transform: scale(1.05); }
+}
+
+@keyframes sonar-wave {
+  0% { transform: scale(0.6); opacity: 0.85; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+@keyframes marquee-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes cyber-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-7px); }
+}
+
+@keyframes cyber-float-delayed {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(7px); }
+}
+
+@keyframes gradient-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes scan-line {
+  0% { transform: translateY(-100%); opacity: 0; }
+  15% { opacity: 0.9; }
+  85% { opacity: 0.9; }
+  100% { transform: translateY(1200%); opacity: 0; }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes spin-slow-reverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+@keyframes glow-breathe {
+  0%, 100% { box-shadow: 0 0 15px rgba(2, 186, 255, 0.15); }
+  50% { box-shadow: 0 0 32px rgba(2, 186, 255, 0.4); }
+}
+
+.animate-cyber-shimmer {
+  animation: cyber-shimmer 3.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-pulse-slow {
+  animation: cyber-pulse-slow 4s ease-in-out infinite;
+}
+
+.animate-sonar {
+  animation: sonar-wave 2.2s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 32s linear infinite;
+}
+
+.animate-float {
+  animation: cyber-float 5s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: cyber-float-delayed 6s ease-in-out infinite 1s;
+}
+
+.animate-gradient-flow {
+  background-size: 200% 200%;
+  animation: gradient-flow 5s ease infinite;
+}
+
+.animate-scan {
+  animation: scan-line 4.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 22s linear infinite;
+}
+
+.animate-spin-reverse {
+  animation: spin-slow-reverse 26s linear infinite;
+}
+
+.animate-glow-breathe {
+  animation: glow-breathe 3.5s ease-in-out infinite;
+}
+
+.cyber-grid-pattern {
+  background-image: 
+    linear-gradient(to right, rgba(2, 186, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(2, 186, 255, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
 }
 
 /* ==========================================================================
@@ -638,21 +754,37 @@ html.light [class*="bg-[#060b16]"],
 html.light [class*="bg-[#091326]"],
 html.light [class*="bg-[#0b1b36]"],
 html.light [class*="bg-[#081224]"],
+html.light [class*="bg-[#0e172a]"],
+html.light [class*="bg-[#060a14]"],
+html.light [class*="bg-[#04060c]"],
+html.light [class*="bg-[#0d1527]"],
+html.light [class*="bg-[#03060f]"],
 .light [class*="bg-[#090e1a]"],
 .light [class*="bg-[#05070e]"],
 .light [class*="bg-[#070b14]"],
 .light [class*="bg-[#060b16]"],
 .light [class*="bg-[#091326]"],
 .light [class*="bg-[#0b1b36]"],
-.light [class*="bg-[#081224]"] {
+.light [class*="bg-[#081224]"],
+.light [class*="bg-[#0e172a]"],
+.light [class*="bg-[#060a14]"],
+.light [class*="bg-[#04060c]"],
+.light [class*="bg-[#0d1527]"],
+.light [class*="bg-[#03060f]"] {
   background-color: #ffffff !important;
 }
 
 html.light [class*="from-[#090e1a]"],
 html.light [class*="from-[#05070e]"],
 html.light [class*="from-[#091326]"],
+html.light [class*="from-[#0e172a]"],
+html.light [class*="from-[#0d1527]"],
+html.light [class*="from-[#060a14]"],
 .light [class*="from-[#090e1a]"],
-.light [class*="from-[#091326]"] {
+.light [class*="from-[#091326]"],
+.light [class*="from-[#0e172a]"],
+.light [class*="from-[#0d1527]"],
+.light [class*="from-[#060a14]"] {
   --tw-gradient-from: #ffffff var(--tw-gradient-from-position) !important;
   --tw-gradient-to: rgb(255 255 255 / 0) var(--tw-gradient-to-position) !important;
 }
@@ -676,8 +808,12 @@ html.light [class*="via-[#0b1b36]"],
 
 html.light [class*="to-[#05070e]"],
 html.light [class*="to-[#081224]"],
+html.light [class*="to-[#060a14]"],
+html.light [class*="to-[#04060c]"],
 .light [class*="to-[#05070e]"],
-.light [class*="to-[#081224]"] {
+.light [class*="to-[#081224]"],
+.light [class*="to-[#060a14]"],
+.light [class*="to-[#04060c]"] {
   --tw-gradient-to: #f1f5f9 var(--tw-gradient-to-position) !important;
 }
 
