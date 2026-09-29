@@ -669,6 +669,12 @@ export class ApiClient {
     return this.request('/admin/users');
   }
 
+  static async deleteAdminUser(userId: string): Promise<{ success: boolean; deletedUserId: string }> {
+    return this.request(`/admin/users/${encodeURIComponent(userId)}`, {
+      method: 'DELETE'
+    });
+  }
+
   static async updateAdminUserDistrict(userId: string, assignedDistrict: string): Promise<{ success: boolean; user: User }> {
     return this.request(`/admin/users/${encodeURIComponent(userId)}/assigned-district`, {
       method: 'PATCH',
