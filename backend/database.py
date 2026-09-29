@@ -84,6 +84,8 @@ def init_db():
         ("paymentReference", "VARCHAR(128)"),
         ("rewardPaidAt", "VARCHAR(64)"),
         ("workflowQueue", "VARCHAR(32) DEFAULT 'INTAKE'"),
+        ("pendingOfficerId", "VARCHAR(64)"),
+        ("pendingOfficerName", "VARCHAR(128)"),
     ]:
         try:
             with engine.connect() as conn:

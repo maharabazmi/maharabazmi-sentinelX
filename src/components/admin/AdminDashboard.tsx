@@ -68,6 +68,8 @@ const formatAdminPhone = (value: string) => {
   return `+88 ${digits.slice(0, 5)}${digits.length > 5 ? `-${digits.slice(5)}` : ''}`;
 };
 
+const getDncrpDistrictOffice = (district: string) => `DNCRP ${district} District Office`;
+
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'system_overview' | 'ai_prediction' | 'audit_trail' | 'user_management'>('system_overview');
@@ -306,8 +308,8 @@ Portal URL: ${window.location.origin}`;
         badgeNumber: newBadge,
         designation: newDesignation,
         department: newRole === UserRole.POLICE || newRole === UserRole.CONSUMER_RIGHTS ? newDepartment : undefined,
-        assignedDistrict: newRole === UserRole.CONSUMER_RIGHTS ? consumerDistrict : undefined,
-        stationOrThana: newStation,
+        assignedDistrict: newRole === UserRole.CONSUMER_RIGHTS ? policeDistrict : undefined,
+        stationOrThana: newRole === UserRole.CITIZEN ? '' : newStation,
         password: newPassword
       });
 
@@ -1434,9 +1436,9 @@ Portal URL: ${window.location.origin}`;
                       setNewStation('');
                     } else if (selectedRole === UserRole.CONSUMER_RIGHTS) {
                       setNewDesignation('');
-                      setNewDepartment('');
-                      setConsumerDistrict('');
-                      setNewStation('');
+                      const districtOffice = getDncrpDistrictOffice(policeDistrict);
+                      setNewDepartment(districtOffice);
+                      setNewStation(districtOffice);
                     } else {
                       setNewDesignation('');
                       setNewDepartment('');
@@ -1594,7 +1596,7 @@ Portal URL: ${window.location.origin}`;
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {newRole === UserRole.CONSUMER_RIGHTS ? (
+                  {newRole === UserRole.CONSUMER_RIGHTS && (
                     <div className="space-y-3">
                       <div>
                         <label className="block font-semibold text-slate-300 mb-1">DNCRP Officer Category</label>
@@ -1614,16 +1616,17 @@ Portal URL: ${window.location.origin}`;
                       <div>
                         <label className="block font-semibold text-slate-300 mb-1">Assigned District</label>
                         <select
-                          value={consumerDistrict}
+                          value={policeDistrict}
                           onChange={e => {
                             const district = e.target.value;
-                            setConsumerDistrict(district);
-                            setNewDepartment(district ? `DNCRP Headquarter, ${district}` : '');
+                            const districtOffice = getDncrpDistrictOffice(district);
+                            setPoliceDistrict(district);
+                            setNewDepartment(districtOffice);
+                            setNewStation(districtOffice);
                           }}
                           className="sx-input"
                           required
                         >
-                          <option value="">Select district</option>
                           {BANGLADESH_DIVISIONS.map(div => (
                             <optgroup key={div.id} label={`${div.name} Division (${div.nameBn})`}>
                               {div.districts.map(dist => (
@@ -1646,7 +1649,9 @@ Portal URL: ${window.location.origin}`;
                         />
                       </div>
                     </div>
-                  ) : (
+                  )}
+
+                  {newRole === UserRole.ADMIN && (
                     <div>
                       <label className="block font-semibold text-slate-300 mb-1">Station / Department / Office</label>
                       <input

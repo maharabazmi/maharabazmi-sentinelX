@@ -41,6 +41,31 @@ import { TableRowSkeleton } from '../ui/SkeletonLoader';
 import { EvidenceViewer } from '../common/EvidenceViewer';
 import { CaseChatThread } from '../common/CaseChatThread';
 
+const normalizeDistrictName = (district?: string) => {
+  const normalized = (district || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\b(district|dist|zilla|zila|division|of)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const aliases: Record<string, string> = {
+    chittagong: 'chattogram',
+    comilla: 'cumilla',
+    barisal: 'barishal',
+    bogra: 'bogura',
+    jessore: 'jashore',
+    'coxs bazar': 'cox s bazar'
+  };
+  return aliases[normalized] || normalized;
+};
+
+const getDistrictOfficers = (officers: any[], district?: string) => {
+  const districtKey = normalizeDistrictName(district);
+  return districtKey
+    ? officers.filter(officer => normalizeDistrictName(officer.assignedDistrict) === districtKey)
+    : [];
+};
+
 export const ConsumerDashboard: React.FC = () => {
   const { user } = useAuth();
   const rawCategory = user?.designation || '';
@@ -164,8 +189,12 @@ export const ConsumerDashboard: React.FC = () => {
   useEffect(() => {
     ApiClient.getConsumerOfficers()
       .then(res => {
-        setInvestigationOfficers((res.officers || []).filter(officer => officer.designation === 'Investigation Officer'));
-        setAdjudicationOfficers((res.officers || []).filter(officer => officer.designation === 'Adjudication Officer'));
+        setInvestigationOfficers((res.officers || []).filter(officer =>
+          officer.designation?.trim().toLowerCase() === 'investigation officer'
+        ));
+        setAdjudicationOfficers((res.officers || []).filter(officer =>
+          officer.designation?.trim().toLowerCase() === 'adjudication officer'
+        ));
       })
       .catch(err => console.error('Error loading DNCRP Officers:', err));
   }, []);
@@ -220,32 +249,41 @@ export const ConsumerDashboard: React.FC = () => {
     }
   };
 
-  const handleAdjudicationAccept = async (complaint: ConsumerComplaint) => {
+  const handleInvestigationAccept = async (complaint: ConsumerComplaint) => {
     if (!complaint) return;
     setIsUpdatingStatus(true);
     try {
-      const decisionRes = await ApiClient.updateComplaintStatus(complaint.id, {
-        status: ComplaintStatus.FINAL_DECISION,
-        inspectorNotes: `Final decision accepted by ${user?.fullName || 'the assigned adjudication officer'}.`
-      });
-      if (decisionRes.success) {
+      const acceptRes = await ApiClient.claimConsumerComplaint(complaint.id);
+      if (acceptRes.success) {
         if (selectedComplaint?.id === complaint.id) {
           setSelectedComplaint(null);
         }
         setInspectorNotes('');
-        setActiveQueueTab('decided');
+        setActiveQueueTab('assigned');
         await fetchConsumerData(queueScope, false);
       }
     } catch (err: any) {
-      alert(err.message || 'Failed to accept adjudication case.');
+      alert(err.message || 'Failed to accept investigation case.');
     } finally {
       setIsUpdatingStatus(false);
     }
   };
 
   const handleHandoverComplaint = async () => {
-    const targetOfficerId = isIntakeOfficer ? selectedInvestigationOfficer : selectedAdjudicationOfficer;
+    const targetOfficerId = isIntakeOfficer
+      ? selectedInvestigationOfficer
+      : isInvestigationOfficer
+        ? selectedAdjudicationOfficer
+        : '';
     if (!selectedComplaint || !targetOfficerId) return;
+    const eligibleOfficers = getDistrictOfficers(
+      isIntakeOfficer ? investigationOfficers : adjudicationOfficers,
+      selectedComplaint.shopDistrict
+    );
+    if (!eligibleOfficers.some(officer => officer.id === targetOfficerId)) {
+      alert(`Select an officer assigned to ${selectedComplaint.shopDistrict}.`);
+      return;
+    }
     setIsUpdatingStatus(true);
     try {
       const res = await ApiClient.updateComplaintStatus(selectedComplaint.id, {
@@ -353,14 +391,14 @@ export const ConsumerDashboard: React.FC = () => {
             id: 'investigation_queue',
             label: 'Investigation Queue',
             match: (complaint: ConsumerComplaint) =>
-              (complaint.status === ComplaintStatus.UNDER_REVIEW && complaint.workflowQueue === 'INVESTIGATION') ||
-              (complaint.workflowQueue === 'INVESTIGATION' && complaint.status !== ComplaintStatus.INVESTIGATION_SUMMARY)
+              complaint.workflowQueue === 'INVESTIGATION' &&
+              complaint.status === ComplaintStatus.UNDER_REVIEW
           },
           {
             id: 'assigned',
             label: 'My Assigned Cases',
             match: (complaint: ConsumerComplaint) =>
-              (complaint.status === ComplaintStatus.INVESTIGATION || complaint.status === ComplaintStatus.UNDER_REVIEW) &&
+              complaint.status === ComplaintStatus.INVESTIGATION &&
               complaint.assignedOfficerId === user?.id
           },
           {
@@ -382,8 +420,7 @@ export const ConsumerDashboard: React.FC = () => {
               id: 'adjudication_queue',
               label: 'Adjudication Queue',
               match: (complaint: ConsumerComplaint) =>
-                complaint.workflowQueue === 'ADJUDICATION' &&
-                (complaint.status === ComplaintStatus.INVESTIGATION_SUMMARY || complaint.status === ComplaintStatus.ADJUDICATION_REVIEW)
+                complaint.status === ComplaintStatus.INVESTIGATION_SUMMARY
             },
             {
               id: 'assigned',
@@ -730,6 +767,11 @@ export const ConsumerDashboard: React.FC = () => {
                                 <span className="px-1.5 py-0.2 bg-blue-500/20 text-blue-300 text-[10px] rounded font-mono">You</span>
                               )}
                             </div>
+                          ) : comp.pendingOfficerName ? (
+                            <div>
+                              <span className="block text-amber-300 font-semibold">Awaiting officer action</span>
+                              <span className="text-[11px] text-slate-400">{comp.pendingOfficerName}</span>
+                            </div>
                           ) : (
                             <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[11px] font-mono">
                               Unassigned
@@ -738,33 +780,17 @@ export const ConsumerDashboard: React.FC = () => {
                         </td>
                         <td className="py-3.5 px-4 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            {isInvestigationOfficer && comp.status === ComplaintStatus.UNDER_REVIEW && comp.assignedOfficerId === user?.id && (
+                            {isInvestigationOfficer && comp.status === ComplaintStatus.UNDER_REVIEW && (comp.pendingOfficerId === user?.id || comp.assignedOfficerId === user?.id) && (
                               <button
                                 onClick={e => {
                                   e.stopPropagation();
-                                  handleUpdateComplaint(ComplaintStatus.INVESTIGATION, comp);
+                                  handleInvestigationAccept(comp);
                                 }}
                                 disabled={isUpdatingStatus}
                                 className="px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs font-semibold transition"
                               >
                                 Accept / Take Case
                               </button>
-                            )}
-                            {isAdjudicationOfficer && comp.assignedOfficerId === user?.id && (
-                              comp.status === ComplaintStatus.INVESTIGATION_SUMMARY && (
-                                <button
-                                  type="button"
-                                  onClick={e => {
-                                    e.stopPropagation();
-                                    handleAdjudicationAccept(comp);
-                                  }}
-                                  disabled={isUpdatingStatus}
-                                  aria-busy={isUpdatingStatus}
-                                  className="px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs font-semibold transition"
-                                >
-                                  {isUpdatingStatus ? 'Accepting...' : 'Accept / Take Case'}
-                                </button>
-                              )
                             )}
                             {isAdjudicationOfficer && comp.assignedOfficerId === user?.id && comp.status === ComplaintStatus.ADJUDICATION_REVIEW && (
                               <button
@@ -1028,7 +1054,10 @@ export const ConsumerDashboard: React.FC = () => {
                     </div>
                   )}
 
-                  {selectedComplaint.status !== ComplaintStatus.RESOLVED && (isInvestigationOfficer || !isAdjudicationOfficer || selectedComplaint.assignedOfficerId === user?.id) && (
+                  {selectedComplaint.status !== ComplaintStatus.RESOLVED && (
+                    (isInvestigationOfficer
+                      ? isSupervisingAuthority || selectedComplaint.assignedOfficerId === user?.id
+                      : !isAdjudicationOfficer || selectedComplaint.assignedOfficerId === user?.id || selectedComplaint.pendingOfficerId === user?.id) && (
                     <div>
                       <label className="block font-semibold text-slate-300 mb-1">
                         {isInvestigationOfficer ? 'Investigation Summary / Report' : isAdjudicationOfficer ? 'Hearing Notes & Final Finding' : 'Authority Notes & Enforcement Order'}
@@ -1041,7 +1070,7 @@ export const ConsumerDashboard: React.FC = () => {
                         className="sx-input"
                       />
                     </div>
-                  )}
+                  ))}
 
                   <div className="flex flex-wrap items-center justify-end gap-2.5 pt-2">
                     {(isIntakeOfficer || isSupervisingAuthority) && (selectedComplaint.status === ComplaintStatus.SUBMITTED || selectedComplaint.status === ComplaintStatus.UNDER_REVIEW) && (
@@ -1053,9 +1082,12 @@ export const ConsumerDashboard: React.FC = () => {
                         <div className="flex flex-col sm:flex-row gap-2">
                           <select aria-label="Investigation Officer for handover" value={selectedInvestigationOfficer} onChange={e => setSelectedInvestigationOfficer(e.target.value)} className="sx-input flex-1">
                           <option value="">Select Investigation Officer</option>
-                          {investigationOfficers.map(officer => (
+                          {getDistrictOfficers(investigationOfficers, selectedComplaint.shopDistrict).map(officer => (
                             <option key={officer.id} value={officer.id}>{formatOfficerOptionLabel(officer)}</option>
                           ))}
+                          {getDistrictOfficers(investigationOfficers, selectedComplaint.shopDistrict).length === 0 && (
+                            <option value="" disabled>No Investigation Officers assigned to {selectedComplaint.shopDistrict}</option>
+                          )}
                           </select>
                           <button type="button" aria-label="Hand over case to Investigation Officer" disabled={isUpdatingStatus || !selectedInvestigationOfficer} onClick={handleHandoverComplaint} className="consumer-intake-handover px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md">
                             <ChevronRight className="w-4 h-4" />
@@ -1071,30 +1103,28 @@ export const ConsumerDashboard: React.FC = () => {
                       </button>
                     )}
 
-                    {(isInvestigationOfficer || isSupervisingAuthority) && selectedComplaint.status === ComplaintStatus.UNDER_REVIEW && selectedComplaint.workflowQueue === 'INVESTIGATION' && (
-                      <button type="button" disabled={isUpdatingStatus} onClick={() => handleUpdateComplaint(ComplaintStatus.INVESTIGATION)} className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition">
+                    {isInvestigationOfficer && (selectedComplaint.pendingOfficerId === user?.id || selectedComplaint.assignedOfficerId === user?.id) && selectedComplaint.status === ComplaintStatus.UNDER_REVIEW && selectedComplaint.workflowQueue === 'INVESTIGATION' && (
+                      <button type="button" disabled={isUpdatingStatus} onClick={() => handleInvestigationAccept(selectedComplaint)} className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition">
                         Accept / Take Case
                       </button>
                     )}
-                    {(isInvestigationOfficer || isSupervisingAuthority) && selectedComplaint.status === ComplaintStatus.INVESTIGATION && (
+                    {(isSupervisingAuthority || (isInvestigationOfficer && selectedComplaint.assignedOfficerId === user?.id)) && selectedComplaint.status === ComplaintStatus.INVESTIGATION && (
                       <div className="w-full flex flex-col sm:flex-row gap-2">
                         <select value={selectedAdjudicationOfficer} onChange={e => setSelectedAdjudicationOfficer(e.target.value)} className="sx-input flex-1">
                           <option value="">Select Adjudication Officer</option>
-                          {adjudicationOfficers.map(officer => (
+                          {getDistrictOfficers(adjudicationOfficers, selectedComplaint.shopDistrict).map(officer => (
                             <option key={officer.id} value={officer.id}>{formatOfficerOptionLabel(officer)}</option>
                           ))}
+                          {getDistrictOfficers(adjudicationOfficers, selectedComplaint.shopDistrict).length === 0 && (
+                            <option value="" disabled>No Adjudication Officers assigned to {selectedComplaint.shopDistrict}</option>
+                          )}
                         </select>
                         <button type="button" disabled={isUpdatingStatus || !selectedAdjudicationOfficer} onClick={handleHandoverComplaint} className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold transition">
                           Submit Summary & Handover
                         </button>
                       </div>
                     )}
-                    {(isAdjudicationOfficer || isSupervisingAuthority) && (isSupervisingAuthority || selectedComplaint.assignedOfficerId === user?.id) && selectedComplaint.status === ComplaintStatus.INVESTIGATION_SUMMARY && (
-                      <button type="button" disabled={isUpdatingStatus} onClick={() => handleAdjudicationAccept(selectedComplaint)} className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-slate-950 text-xs font-bold transition">
-                        Accept / Take Case for Final Decision
-                      </button>
-                    )}
-                    {(isAdjudicationOfficer || isSupervisingAuthority) && (isSupervisingAuthority || selectedComplaint.assignedOfficerId === user?.id) && selectedComplaint.status === ComplaintStatus.ADJUDICATION_REVIEW && (
+                    {(isAdjudicationOfficer || isSupervisingAuthority) && (isSupervisingAuthority || selectedComplaint.assignedOfficerId === user?.id || selectedComplaint.pendingOfficerId === user?.id) && (selectedComplaint.status === ComplaintStatus.INVESTIGATION_SUMMARY || selectedComplaint.status === ComplaintStatus.ADJUDICATION_REVIEW) && (
                       <button type="button" disabled={isUpdatingStatus} onClick={() => handleUpdateComplaint(ComplaintStatus.FINAL_DECISION)} className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-slate-950 text-xs font-bold transition">
                         Record Final Finding
                       </button>
