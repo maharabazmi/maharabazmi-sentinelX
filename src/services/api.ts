@@ -22,17 +22,31 @@ import {
 const API_BASE = '/api';
 
 export class ApiClient {
-  private static getToken(): string | null {
-    return sessionStorage.getItem('sentinelx_token');
+  public static getToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    return sessionStorage.getItem('sentinelx_token') || localStorage.getItem('sentinelx_token');
   }
 
   public static setToken(token: string) {
-    sessionStorage.setItem('sentinelx_token', token);
+    if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.setItem('sentinelx_token', token);
+      localStorage.setItem('sentinelx_token', token);
+    } catch {
+      // ignore storage quota errors
+    }
   }
 
   public static clearToken() {
-    sessionStorage.removeItem('sentinelx_token');
-    localStorage.removeItem('sentinelx_token');
+    if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.removeItem('sentinelx_token');
+      localStorage.removeItem('sentinelx_token');
+      sessionStorage.removeItem('sentinelx_user');
+      localStorage.removeItem('sentinelx_user');
+    } catch {
+      // ignore
+    }
   }
 
   private static async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -73,6 +87,17 @@ export class ApiClient {
     }
 
     if (!response.ok) {
+      if (response.status === 401) {
+        const isAuthAttempt = endpoint.startsWith('/auth/login') || endpoint.startsWith('/auth/admin-clearance');
+        if (!isAuthAttempt) {
+          this.clearToken();
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('sentinelx_session_expired', {
+              detail: { message: data?.error || 'Your security session has expired. Please sign in again.' }
+            }));
+          }
+        }
+      }
       throw new Error(data?.error || data?.message || `Request failed with status ${response.status}`);
     }
 

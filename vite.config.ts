@@ -20,7 +20,21 @@ export default defineConfig(() => {
         },
       },
       hmr: process.env.DISABLE_HMR !== 'true',
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      watch: {
+        ignored: [
+          '**/*.db',
+          '**/*.db-wal',
+          '**/*.db-shm',
+          '**/*.sqlite*',
+          '**/sentinelx.db*',
+          '**/backend/**',
+          '**/.system_generated/**',
+          '**/*.log',
+          '**/__pycache__/**',
+          '**/.git/**',
+          '**/dist/**',
+        ],
+      },
     },
   };
 });

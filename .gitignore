@@ -14,4 +14,6 @@ __pycache__/
 
 sentinelx.db
 *.db
+*.db-wal
+*.db-shm
 *.sqlite3

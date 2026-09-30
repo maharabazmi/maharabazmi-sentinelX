@@ -1,6 +1,6 @@
 import logging
 from contextlib import contextmanager
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, event
 from sqlalchemy.orm import sessionmaker
 from .config import Config
 from .models import Base, User
@@ -17,7 +17,7 @@ def create_database_engine():
         logger.info(f"[DB] Using local SQLite database engine ({db_uri})")
         sqlite_engine = create_engine(
             db_uri,
-            connect_args={"check_same_thread": False},
+            connect_args={"check_same_thread": False, "timeout": 30},
             pool_pre_ping=True
         )
         return sqlite_engine, "SQLITE"
@@ -42,12 +42,25 @@ def create_database_engine():
         sqlite_uri = "sqlite:///sentinelx.db"
         sqlite_engine = create_engine(
             sqlite_uri,
-            connect_args={"check_same_thread": False},
+            connect_args={"check_same_thread": False, "timeout": 30},
             pool_pre_ping=True
         )
         return sqlite_engine, "SQLITE_FALLBACK"
 
 engine, DB_ENGINE_TYPE = create_database_engine()
+
+# Configure SQLite WAL Mode and Busy Timeout on every connection
+if DB_ENGINE_TYPE.startswith("SQLITE"):
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        try:
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+            cursor.execute("PRAGMA busy_timeout=30000")
+            cursor.close()
+        except Exception:
+            pass
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, expire_on_commit=False, bind=engine)
 
 @contextmanager
@@ -63,6 +76,17 @@ def get_db():
         db.close()
 
 def init_db():
+    if DB_ENGINE_TYPE.startswith("SQLITE"):
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("PRAGMA journal_mode=WAL;"))
+                conn.execute(text("PRAGMA synchronous=NORMAL;"))
+                conn.execute(text("PRAGMA busy_timeout=30000;"))
+                conn.commit()
+                logger.info("[DB] SQLite configured with WAL mode and 30s busy timeout for high concurrency.")
+        except Exception as e:
+            logger.warning(f"[DB] SQLite WAL mode setup skipped: {e}")
+
     Base.metadata.create_all(bind=engine)
     # Add user identity uniqueness constraints to databases created before they were declared on User.
     try:
