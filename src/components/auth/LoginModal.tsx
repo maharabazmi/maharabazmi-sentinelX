@@ -189,22 +189,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </button>
           </p>
         </div>
-
-        {onSwitchToAdminClearance && (
-          <div className="mt-4 pt-4 border-t border-slate-800/80 text-center">
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onSwitchToAdminClearance();
-              }}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-purple-950/40 hover:bg-purple-900/50 border border-purple-500/30 hover:border-purple-500/60 text-purple-300 hover:text-purple-200 text-xs font-mono font-medium transition"
-            >
-              <ShieldAlert className="w-3.5 h-3.5 text-purple-400" />
-              <span>HQ Admin Higher Authority Clearance →</span>
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Forgot Password OTP Modal */}
