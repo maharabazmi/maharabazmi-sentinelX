@@ -703,6 +703,11 @@ export class ApiClient {
     riskMatrix: ComparativeRiskRank[];
     resourceAllocations: ResourceAllocationAdvice[];
     directives: OperationalDirective[];
+    automatedTriggers?: {
+      sosClusters: any[];
+      incidentSpikes: any[];
+      totalTriggers: number;
+    };
   }> {
     const query = district ? `?district=${encodeURIComponent(district)}${thana ? `&thana=${encodeURIComponent(thana)}` : ''}` : '';
     return this.request(`/admin/ai-predictions${query}`);
@@ -722,6 +727,20 @@ export class ApiClient {
     longitude?: number;
   }): Promise<{ success: boolean; message: string; directive: OperationalDirective }> {
     return this.request('/admin/ai-predictions/directives', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  static async fastTrackSOSDirective(data: {
+    clusterId?: string;
+    targetDistrict: string;
+    targetThana: string;
+    activeBeaconsCount?: number;
+    latitude?: number;
+    longitude?: number;
+  }): Promise<{ success: boolean; message: string; directive: OperationalDirective }> {
+    return this.request('/admin/ai-predictions/fast-track-sos-directive', {
       method: 'POST',
       body: JSON.stringify(data)
     });
