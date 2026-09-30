@@ -28,7 +28,9 @@ import {
   MailCheck,
   Download,
   FileSpreadsheet,
-  Trash2
+  Trash2,
+  MapPin,
+  Zap
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ApiClient } from '../../services/api';
@@ -100,6 +102,12 @@ export const AdminDashboard: React.FC = () => {
   const [simFestival, setSimFestival] = useState(true);
   const [simResult, setSimResult] = useState<AIPredictionData | null>(null);
   const [isGeneratingSim, setIsGeneratingSim] = useState(false);
+  const [automatedTriggers, setAutomatedTriggers] = useState<{
+    sosClusters: any[];
+    incidentSpikes: any[];
+    totalTriggers: number;
+  } | null>(null);
+  const [isFastTrackingSOS, setIsFastTrackingSOS] = useState<string | null>(null);
 
   // User Provisioning State
   const [newFullName, setNewFullName] = useState('');
@@ -184,6 +192,7 @@ export const AdminDashboard: React.FC = () => {
         if ((predRes as any).riskMatrix) setRiskMatrix((predRes as any).riskMatrix);
         if ((predRes as any).resourceAllocations) setResourceAllocations((predRes as any).resourceAllocations);
         if ((predRes as any).directives) setDirectivesList((predRes as any).directives);
+        if ((predRes as any).automatedTriggers) setAutomatedTriggers((predRes as any).automatedTriggers);
       }
 
       if (logsResult.status === 'fulfilled' && logsResult.value.success) {
@@ -239,6 +248,58 @@ export const AdminDashboard: React.FC = () => {
         crimeType: simCrimeType,
         weather: simWeather,
         isFestival: simFestival
+      });
+      if (res.success) {
+        setSimResult(res.prediction);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Simulation execution failed.');
+    } finally {
+      setIsGeneratingSim(false);
+    }
+  };
+
+  // Fast-track Emergency Directive for SOS Clusters
+  const handleFastTrackSOS = async (cluster: any) => {
+    setIsFastTrackingSOS(cluster.id);
+    try {
+      const res = await ApiClient.fastTrackSOSDirective({
+        clusterId: cluster.id,
+        targetDistrict: cluster.district,
+        targetThana: cluster.thana,
+        activeBeaconsCount: cluster.activeBeaconsCount,
+        latitude: cluster.latitude,
+        longitude: cluster.longitude
+      });
+      if (res.success) {
+        setDirectiveSuccessNotice(`🚨 Emergency Fast-Track Directive ${res.directive.directiveCode} officially dispatched to ${res.directive.targetThana} Police!`);
+        setDirectivesList(prev => [res.directive, ...prev]);
+        setTimeout(() => setDirectiveSuccessNotice(null), 8000);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to fast-track emergency directive.');
+    } finally {
+      setIsFastTrackingSOS(null);
+    }
+  };
+
+  // 1-Click Trigger Scenario Simulation from Anomaly Spike
+  const handleTriggerSpikeSimulation = async (spike: any) => {
+    setActiveTab('ai_prediction');
+    setSimDistrict(spike.district || 'Dhaka');
+    setSimThana(spike.thana || 'Mirpur');
+    setSimCrimeType((spike.primaryCrimeType as CrimeType) || CrimeType.THEFT_ROBBERY);
+    setSimWeather(spike.suggestedWeather || 'Heavy Monsoon');
+    setSimFestival(Boolean(spike.suggestedIsFestival));
+
+    setIsGeneratingSim(true);
+    try {
+      const res = await ApiClient.generateAIScenario({
+        district: spike.district,
+        thana: spike.thana,
+        crimeType: spike.primaryCrimeType,
+        weather: spike.suggestedWeather || 'Heavy Monsoon',
+        isFestival: Boolean(spike.suggestedIsFestival)
       });
       if (res.success) {
         setSimResult(res.prediction);
@@ -597,7 +658,11 @@ Portal URL: ${window.location.origin}`;
         <div className="short-tabs flex items-center gap-1 overflow-x-auto pt-5 mt-5 border-t border-white/5 text-xs no-scrollbar">
           {[
             { id: 'system_overview', label: 'System Telemetry' },
-            { id: 'ai_prediction', label: 'AI Crime Model' },
+            { 
+              id: 'ai_prediction', 
+              label: 'AI Crime Model',
+              badge: (automatedTriggers?.totalTriggers && automatedTriggers.totalTriggers > 0) ? `${automatedTriggers.totalTriggers} Alerts` : undefined
+            },
             { id: 'audit_trail', label: `Audit Trail (${auditLogs.length})` },
             { id: 'user_management', label: `User Directory (${usersList.length})` },
           ].map(tab => (
@@ -611,6 +676,11 @@ Portal URL: ${window.location.origin}`;
               }`}
             >
               <span>{tab.label}</span>
+              {tab.badge && (
+                <span className="px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/40 text-[10px] font-mono font-bold animate-pulse">
+                  {tab.badge}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -659,6 +729,34 @@ Portal URL: ${window.location.origin}`;
       {/* ========================================================================= */}
       {activeTab === 'system_overview' && systemStats && (
         <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Active Threat Surge & SOS Cluster Alert Banner */}
+          {automatedTriggers && (automatedTriggers.sosClusters?.length > 0 || automatedTriggers.incidentSpikes?.length > 0) && (
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-red-950/60 via-purple-950/40 to-slate-900 border border-red-500/40 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in slide-in-from-top">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-red-500/20 border border-red-500/40 text-red-400 shrink-0">
+                  <AlertTriangle className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white font-display flex items-center gap-2">
+                    🚨 {automatedTriggers.totalTriggers} Automated Threat Triggers Active
+                    <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 text-[10px] font-mono font-bold">Action Required</span>
+                  </h4>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    {automatedTriggers.sosClusters?.length || 0} emergency SOS cluster(s) & {automatedTriggers.incidentSpikes?.length || 0} incident velocity surge(s) detected across jurisdictions.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab('ai_prediction')}
+                className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-red-600 to-purple-600 hover:from-red-500 hover:to-purple-500 text-white font-bold text-xs shrink-0 shadow-lg shadow-red-600/30 transition flex items-center justify-center gap-2 active:scale-95"
+              >
+                <span>View & Fast-Track Directives</span>
+                <span className="text-sm">→</span>
+              </button>
+            </div>
+          )}
+
           {/* National Data Intelligence & Export Banner */}
           <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-slate-950 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
             <div className="flex items-center gap-3">
@@ -775,6 +873,163 @@ Portal URL: ${window.location.origin}`;
             <div className="p-3.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2.5 animate-in slide-in-from-top">
               <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
               <span className="font-medium">{directiveSuccessNotice}</span>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* AUTOMATED THREAT SURGE & SOS CLUSTER FAST-TRACK TRIGGERS                 */}
+          {/* ========================================================================= */}
+          {automatedTriggers && (automatedTriggers.sosClusters?.length > 0 || automatedTriggers.incidentSpikes?.length > 0) && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400">
+                    <AlertTriangle className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white font-display flex items-center gap-2">
+                      Automated Threat & Emergency Dispatch Triggers
+                      <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/40 text-[11px] font-mono font-bold">
+                        {automatedTriggers.totalTriggers} Active Alerts
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Real-time anomaly detection engine prompts high-priority simulations or instantaneous emergency patrol directives to police.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* 1. SOS Cluster Emergency Fast-Track Cards */}
+                {automatedTriggers.sosClusters?.map((cluster: any) => (
+                  <div
+                    key={cluster.id}
+                    className="p-5 rounded-2xl bg-gradient-to-br from-red-950/40 via-slate-900 to-slate-900 border-2 border-red-500/40 shadow-xl space-y-4 relative overflow-hidden"
+                  >
+                    <div className="absolute top-0 right-0 transform translate-x-2 -translate-y-2">
+                      <span className="inline-flex items-center px-3 py-1 rounded-bl-xl rounded-tr-xl bg-red-600 text-white text-[10px] font-mono font-bold tracking-wider uppercase animate-pulse shadow-lg">
+                        🚨 EMERGENCY SOS CLUSTER
+                      </span>
+                    </div>
+
+                    <div className="space-y-1 pr-28">
+                      <div className="flex items-center gap-2 text-red-400 font-semibold text-sm">
+                        <MapPin className="w-4 h-4 shrink-0 text-red-400" />
+                        <span>{cluster.thana}, {cluster.district}</span>
+                      </div>
+                      <p className="text-xs text-slate-300 leading-relaxed">
+                        {cluster.triggerReason}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[11px] py-2 px-3 rounded-xl bg-red-950/30 border border-red-500/20 font-mono">
+                      <div>
+                        <span className="text-slate-400 block">Distress Beacons</span>
+                        <strong className="text-red-300 font-bold text-sm">{cluster.activeBeaconsCount} Active Units</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block">GPS Coordinates</span>
+                        <strong className="text-slate-200">{cluster.latitude.toFixed(4)}, {cluster.longitude.toFixed(4)}</strong>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleFastTrackSOS(cluster)}
+                        disabled={isFastTrackingSOS === cluster.id}
+                        className="flex-1 py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-red-600/30 transition disabled:opacity-50"
+                      >
+                        {isFastTrackingSOS === cluster.id ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            <span>Dispatching Directive...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="w-4 h-4" />
+                            <span>⚡ Fast-Track Directive to Police</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSimDistrict(cluster.district);
+                          setSimThana(cluster.thana);
+                          setSimCrimeType(CrimeType.THEFT_ROBBERY);
+                        }}
+                        className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs border border-slate-700 hover:text-white transition"
+                        title="Load into Simulation Form"
+                      >
+                        Load Coordinates
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {/* 2. Incident Velocity Spikes Cards */}
+                {automatedTriggers.incidentSpikes?.map((spike: any) => (
+                  <div
+                    key={spike.id}
+                    className="p-5 rounded-2xl bg-gradient-to-br from-amber-950/30 via-slate-900 to-slate-900 border border-amber-500/40 shadow-xl space-y-4 relative overflow-hidden"
+                  >
+                    <div className="absolute top-0 right-0 transform translate-x-2 -translate-y-2">
+                      <span className="inline-flex items-center px-3 py-1 rounded-bl-xl rounded-tr-xl bg-amber-600/80 text-white text-[10px] font-mono font-bold tracking-wider uppercase">
+                        ⚠️ INCIDENT SURGE ALERT
+                      </span>
+                    </div>
+
+                    <div className="space-y-1 pr-28">
+                      <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm">
+                        <Activity className="w-4 h-4 shrink-0 text-amber-400" />
+                        <span>{spike.thana}, {spike.district}</span>
+                      </div>
+                      <p className="text-xs text-slate-300 leading-relaxed">
+                        {spike.triggerReason}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 text-[11px] py-2 px-3 rounded-xl bg-amber-950/20 border border-amber-500/20 font-mono">
+                      <div>
+                        <span className="text-slate-400 block">Total Reports</span>
+                        <strong className="text-amber-300 font-bold text-sm">{spike.incidentCount} Cases</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block">High Severity</span>
+                        <strong className="text-red-400 font-bold text-sm">{spike.highSeverityCount} Critical</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block">Dominant Type</span>
+                        <strong className="text-slate-200 truncate block">{spike.primaryCrimeType}</strong>
+                      </div>
+                    </div>
+
+                    <div className="pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleTriggerSpikeSimulation(spike)}
+                        disabled={isGeneratingSim}
+                        className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-600/20 transition disabled:opacity-50"
+                      >
+                        {isGeneratingSim ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            <span>Simulating Threat Scenario...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-4 h-4" />
+                            <span>1-Click Pre-Fill & Run AI Scenario Simulation</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

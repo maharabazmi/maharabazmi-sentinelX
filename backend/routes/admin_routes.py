@@ -301,6 +301,7 @@ def get_ai_predictions():
         risk_matrix = ai_prediction_service.get_comparative_risk_matrix(db)
         resource_allocations = ai_prediction_service.get_resource_allocation_advice(db)
         directives = ai_prediction_service.get_directives(db)
+        automated_triggers = ai_prediction_service.get_automated_triggers(db)
 
     return jsonify({
         "success": True,
@@ -309,6 +310,7 @@ def get_ai_predictions():
         "riskMatrix": risk_matrix,
         "resourceAllocations": resource_allocations,
         "directives": directives,
+        "automatedTriggers": automated_triggers,
     })
 
 @admin_bp.route("/ai-predictions/generate", methods=["POST"])
@@ -363,6 +365,49 @@ def issue_directive():
     return jsonify({
         "success": True,
         "message": f"Operational directive ({directive['directiveCode']}) issued to {directive['targetThana']} police.",
+        "directive": directive
+    }), 201
+
+@admin_bp.route("/ai-predictions/fast-track-sos-directive", methods=["POST"])
+def fast_track_sos_directive():
+    data = request.get_json() or {}
+    cluster_id = data.get("clusterId", "SOS-CLUSTER-FASTTRACK")
+    target_district = data.get("targetDistrict", "Dhaka")
+    target_thana = data.get("targetThana", "Gulshan")
+    beacons_count = data.get("activeBeaconsCount", 2)
+    lat = data.get("latitude")
+    lng = data.get("longitude")
+
+    directive_payload = {
+        "targetDistrict": target_district,
+        "targetThana": target_thana,
+        "predictedRiskLevel": "CRITICAL",
+        "primaryRiskCrimeType": "THEFT_ROBBERY",
+        "timeWindow": "Immediate Surge Response (Next 30 Mins)",
+        "recommendedAction": f"🚨 EMERGENCY SOS CLUSTER FAST-TRACK: {beacons_count} active distress beacons clustered in {target_thana}. Deploy 4 rapid response interceptors, initiate perimeter checks, and reinforce wireless telemetry with district command.",
+        "recommendedUnits": 4,
+        "latitude": lat,
+        "longitude": lng
+    }
+
+    with get_db() as db:
+        directive = ai_prediction_service.issue_operational_directive(db, g.user, directive_payload)
+
+    AuditService.log(
+        user_id=g.user.id,
+        user_name=g.user.fullName,
+        user_role=g.user.role,
+        action="FAST_TRACK_SOS_DIRECTIVE",
+        resource=f"{target_district}/{target_thana}",
+        resource_id=directive.get("directiveCode"),
+        ip_address=request.remote_addr,
+        status="SUCCESS",
+        details=f"Admin fast-tracked emergency operational directive [{directive['directiveCode']}] for SOS cluster in [{target_thana}].",
+    )
+
+    return jsonify({
+        "success": True,
+        "message": f"🚨 Emergency Fast-Track Directive ({directive['directiveCode']}) dispatched to {target_thana} police.",
         "directive": directive
     }), 201
 

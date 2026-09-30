@@ -9,7 +9,9 @@ import {
   ChevronDown,
   Download,
   Moon,
-  Sun
+  Sun,
+  LayoutDashboard,
+  Home
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -64,7 +66,11 @@ export const Header: React.FC<HeaderProps> = ({
 
 
   const handleEmblemClick = () => {
-    onSelectTab('home');
+    if (!user) {
+      onSelectTab('home');
+    } else {
+      onSelectTab('dashboard');
+    }
     setEmblemClicks(prev => {
       const next = prev + 1;
       if (next >= 5) {
@@ -141,12 +147,43 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="w-full bg-[var(--bg-header)] border-b border-slate-200 dark:border-slate-800/80 backdrop-blur-md sticky top-0 z-40 transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between gap-4">
-        {/* Brand Emblem */}
-        <div
-          onClick={handleEmblemClick}
-          className="cursor-pointer group select-none flex-shrink-0"
-        >
-          <BrandLogo variant="full" size="md" showBadge={true} badgeText="BD" />
+        {/* Brand Emblem & Authenticated Navigation Pill */}
+        <div className="flex items-center gap-4">
+          <div
+            onClick={handleEmblemClick}
+            className="cursor-pointer group select-none flex-shrink-0"
+          >
+            <BrandLogo variant="full" size="md" showBadge={true} badgeText="BD" />
+          </div>
+
+          {user && (
+            <nav className="hidden md:flex items-center gap-1 p-1 bg-slate-900/90 dark:bg-slate-950/80 border border-slate-700/60 dark:border-slate-800 rounded-xl text-xs font-mono">
+              <button
+                type="button"
+                onClick={() => onSelectTab('dashboard')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                  currentTab === 'dashboard'
+                    ? 'bg-[#0147bf] text-white shadow-md shadow-[#0147bf]/40'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                }`}
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" />
+                <span>Console Dashboard</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onSelectTab('home')}
+                className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 cursor-pointer ${
+                  currentTab === 'home'
+                    ? 'bg-[#0147bf] text-white shadow-md shadow-[#0147bf]/40 font-bold'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                }`}
+              >
+                <Home className="w-3.5 h-3.5" />
+                <span>Public Portal</span>
+              </button>
+            </nav>
+          )}
         </div>
 
         {/* Right Action Bar */}

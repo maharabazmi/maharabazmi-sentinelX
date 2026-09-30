@@ -39,7 +39,7 @@ import { InteractiveCommandTerminal } from './InteractiveCommandTerminal';
 interface LandingPageProps {
   onOpenLogin: () => void;
   onOpenRegister: () => void;
-  onNavigateToDashboard?: () => void;
+  onNavigateToDashboard?: (hash?: string) => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
@@ -260,9 +260,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Card 1: SOS Distress Beacon with Continuous Sonar */}
           <div
+            onClick={() => {
+              if (user) {
+                onNavigateToDashboard?.('#sos');
+              } else {
+                onOpenRegister();
+              }
+            }}
             onMouseEnter={() => setHoveredCard(1)}
             onMouseLeave={() => setHoveredCard(null)}
-            className={`p-7 rounded-3xl bg-white dark:bg-slate-900/60 border transition-all duration-300 space-y-4 shadow-lg shadow-red-500/10 dark:shadow-red-500/15 relative overflow-hidden group hover:-translate-y-1 ${
+            className={`p-7 rounded-3xl bg-white dark:bg-slate-900/60 border transition-all duration-300 space-y-4 shadow-lg shadow-red-500/10 dark:shadow-red-500/15 relative overflow-hidden group hover:-translate-y-1 cursor-pointer ${
               hoveredCard === 1
                 ? 'border-red-500 shadow-xl shadow-red-500/30'
                 : 'border-slate-200 dark:border-red-500/25'
@@ -293,9 +300,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
           {/* Card 2: Cryptographic Crime & GD Filing with Continuous Sonar */}
           <div
+            onClick={() => {
+              if (user) {
+                onNavigateToDashboard?.('#report-crime');
+              } else {
+                onOpenRegister();
+              }
+            }}
             onMouseEnter={() => setHoveredCard(2)}
             onMouseLeave={() => setHoveredCard(null)}
-            className={`p-7 rounded-3xl bg-white dark:bg-slate-900/60 border transition-all duration-300 space-y-4 shadow-lg shadow-[#0147bf]/10 dark:shadow-[#02baff]/15 relative overflow-hidden group hover:-translate-y-1 ${
+            className={`p-7 rounded-3xl bg-white dark:bg-slate-900/60 border transition-all duration-300 space-y-4 shadow-lg shadow-[#0147bf]/10 dark:shadow-[#02baff]/15 relative overflow-hidden group hover:-translate-y-1 cursor-pointer ${
               hoveredCard === 2
                 ? 'border-[#0147bf] dark:border-[#02baff] shadow-xl shadow-[#02baff]/35'
                 : 'border-slate-200 dark:border-[#02baff]/25'
@@ -326,9 +340,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
           {/* Card 3: DNCRP 25% Consumer Rights Bounty with Continuous Sonar */}
           <div
+            onClick={() => {
+              if (user) {
+                onNavigateToDashboard?.('#file-dispute');
+              } else {
+                onOpenRegister();
+              }
+            }}
             onMouseEnter={() => setHoveredCard(3)}
             onMouseLeave={() => setHoveredCard(null)}
-            className={`p-7 rounded-3xl bg-white dark:bg-slate-900/60 border transition-all duration-300 space-y-4 shadow-lg shadow-amber-500/10 dark:shadow-amber-500/15 relative overflow-hidden group hover:-translate-y-1 ${
+            className={`p-7 rounded-3xl bg-white dark:bg-slate-900/60 border transition-all duration-300 space-y-4 shadow-lg shadow-amber-500/10 dark:shadow-amber-500/15 relative overflow-hidden group hover:-translate-y-1 cursor-pointer ${
               hoveredCard === 3
                 ? 'border-amber-500 shadow-xl shadow-amber-500/30'
                 : 'border-slate-200 dark:border-amber-500/25'
@@ -359,9 +380,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
           {/* Card 4: BSTI Barcode & Anti-Counterfeit with Continuous Sonar */}
           <div
+            onClick={() => {
+              if (user) {
+                onNavigateToDashboard?.('#barcode-check');
+              } else {
+                onOpenRegister();
+              }
+            }}
             onMouseEnter={() => setHoveredCard(4)}
             onMouseLeave={() => setHoveredCard(null)}
-            className={`p-7 rounded-3xl bg-white dark:bg-slate-900/60 border transition-all duration-300 space-y-4 shadow-lg shadow-emerald-500/10 dark:shadow-emerald-500/15 relative overflow-hidden group hover:-translate-y-1 ${
+            className={`p-7 rounded-3xl bg-white dark:bg-slate-900/60 border transition-all duration-300 space-y-4 shadow-lg shadow-emerald-500/10 dark:shadow-emerald-500/15 relative overflow-hidden group hover:-translate-y-1 cursor-pointer ${
               hoveredCard === 4
                 ? 'border-emerald-500 shadow-xl shadow-emerald-500/30'
                 : 'border-slate-200 dark:border-emerald-500/25'
