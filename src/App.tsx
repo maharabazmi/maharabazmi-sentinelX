@@ -35,18 +35,28 @@ const AppContent: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Classified URL hash route (#/hq-clearance or #/admin-clearance)
+  // Classified URL hash route (#/hq-clearance or #/admin-clearance) and dashboard tab deep-linking
   React.useEffect(() => {
     const checkHash = () => {
       const hash = window.location.hash.toLowerCase();
       if (hash === '#/hq-clearance' || hash === '#/admin-clearance' || hash === '#/restricted-ops') {
         setIsAdminClearanceOpen(true);
+      } else if (user && (
+        hash.startsWith('#overview') ||
+        hash.startsWith('#report') ||
+        hash.startsWith('#my-case') ||
+        hash.startsWith('#file-dispute') ||
+        hash.startsWith('#my-dispute') ||
+        hash.startsWith('#barcode') ||
+        hash.startsWith('#sos')
+      )) {
+        setCurrentTab('dashboard');
       }
     };
     checkHash();
     window.addEventListener('hashchange', checkHash);
     return () => window.removeEventListener('hashchange', checkHash);
-  }, []);
+  }, [user]);
 
   // When user logs out, always return to landing page ('home')
   React.useEffect(() => {
@@ -66,7 +76,12 @@ const AppContent: React.FC = () => {
         <LandingPage
           onOpenLogin={() => setIsLoginOpen(true)}
           onOpenRegister={() => setIsRegisterOpen(true)}
-          onNavigateToDashboard={() => setCurrentTab('dashboard')}
+          onNavigateToDashboard={(targetHash?: string) => {
+            if (targetHash && typeof window !== 'undefined') {
+              window.location.hash = targetHash;
+            }
+            setCurrentTab('dashboard');
+          }}
         />
       );
     }

@@ -70,6 +70,47 @@ import { BANGLADESH_DIVISIONS, getThanasByDistrict } from '../../data/bangladesh
 
 type ComplaintStatusFilter = 'ALL' | 'IN_PROGRESS' | ComplaintStatus;
 
+const TAB_HASH_MAP: Record<string, string> = {
+  overview: 'overview',
+  report_crime: 'report-crime',
+  my_reports: 'my-cases',
+  consumer_dispute: 'file-dispute',
+  my_complaints: 'my-disputes',
+  barcode_scanner: 'barcode-check',
+  sos: 'sos'
+};
+
+const normalizeHash = (hashStr: string): string => {
+  if (!hashStr) return '';
+  return hashStr.toLowerCase().split('?')[0].replace(/\/+$/, '');
+};
+
+const HASH_TO_TAB_MAP: Record<string, 'overview' | 'report_crime' | 'consumer_dispute' | 'sos' | 'my_reports' | 'my_complaints' | 'barcode_scanner'> = {
+  '': 'overview',
+  '#': 'overview',
+  '#overview': 'overview',
+  '#report-crime': 'report_crime',
+  '#report_crime': 'report_crime',
+  '#report': 'report_crime',
+  '#my-cases': 'my_reports',
+  '#my_cases': 'my_reports',
+  '#my-reports': 'my_reports',
+  '#my_reports': 'my_reports',
+  '#file-dispute': 'consumer_dispute',
+  '#file_dispute': 'consumer_dispute',
+  '#consumer-dispute': 'consumer_dispute',
+  '#consumer_dispute': 'consumer_dispute',
+  '#my-disputes': 'my_complaints',
+  '#my_disputes': 'my_complaints',
+  '#my-complaints': 'my_complaints',
+  '#my_complaints': 'my_complaints',
+  '#barcode-check': 'barcode_scanner',
+  '#barcode_check': 'barcode_scanner',
+  '#barcode-scanner': 'barcode_scanner',
+  '#barcode_scanner': 'barcode_scanner',
+  '#sos': 'sos'
+};
+
 const COMPLAINT_STATUS_FILTERS: {
   id: ComplaintStatusFilter;
   label: string;
@@ -95,9 +136,31 @@ const COMPLAINT_STATUS_FILTERS: {
 
 export const CitizenDashboard: React.FC = () => {
   const { user, activeAlerts } = useAuth();
+
+  const getInitialTab = (): 'overview' | 'report_crime' | 'consumer_dispute' | 'sos' | 'my_reports' | 'my_complaints' | 'barcode_scanner' => {
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const clean = normalizeHash(window.location.hash);
+      const mapped = HASH_TO_TAB_MAP[clean];
+      if (mapped) return mapped;
+    }
+    return 'overview';
+  };
+
   const [activeTab, setActiveTab] = useState<
     'overview' | 'report_crime' | 'consumer_dispute' | 'sos' | 'my_reports' | 'my_complaints' | 'barcode_scanner'
-  >('overview');
+  >(getInitialTab);
+
+  const switchTab = (tabId: 'overview' | 'report_crime' | 'consumer_dispute' | 'sos' | 'my_reports' | 'my_complaints' | 'barcode_scanner') => {
+    setActiveTab(tabId);
+    const hash = TAB_HASH_MAP[tabId];
+    if (hash && typeof window !== 'undefined') {
+      const targetHash = `#${hash}`;
+      if (normalizeHash(window.location.hash) !== targetHash) {
+        window.history.pushState(null, '', targetHash);
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   // Core Citizen Data
   const [myReports, setMyReports] = useState<CrimeReport[]>([]);
@@ -105,6 +168,36 @@ export const CitizenDashboard: React.FC = () => {
   const [activeSOS, setActiveSOS] = useState<SOSRequest | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [activeChatCase, setActiveChatCase] = useState<{ caseId: string; caseType: 'CRIME' | 'CONSUMER'; title: string; officer?: string } | null>(null);
+
+  // Sync hash changes (e.g. browser Back / Forward buttons & direct hash navigation)
+  useEffect(() => {
+    const handleHashSync = () => {
+      const clean = normalizeHash(window.location.hash);
+      const mapped = HASH_TO_TAB_MAP[clean];
+      if (mapped) {
+        setActiveTab(mapped);
+      }
+    };
+    window.addEventListener('hashchange', handleHashSync);
+    window.addEventListener('popstate', handleHashSync);
+    return () => {
+      window.removeEventListener('hashchange', handleHashSync);
+      window.removeEventListener('popstate', handleHashSync);
+    };
+  }, []);
+
+  // Sync open_case_report event (e.g. from Notification click)
+  useEffect(() => {
+    const handleOpenCase = (e: any) => {
+      const caseId = e.detail?.caseId;
+      switchTab('my_reports');
+      if (caseId) {
+        setReportSearchQuery(caseId);
+      }
+    };
+    window.addEventListener('open_case_report', handleOpenCase);
+    return () => window.removeEventListener('open_case_report', handleOpenCase);
+  }, []);
 
   const handleDownloadRewardCertificate = (comp: ConsumerComplaint) => {
     try {
@@ -446,10 +539,11 @@ export const CitizenDashboard: React.FC = () => {
     filter => filter.id === complaintStatusFilter
   )?.statuses;
   const filteredComplaints = myComplaints.filter(complaint => {
-    const matchesSearch =
-      complaint.trackingNumber.toLowerCase().includes(complaintSearchQuery.toLowerCase()) ||
-      complaint.shopName.toLowerCase().includes(complaintSearchQuery.toLowerCase()) ||
-      complaint.productName.toLowerCase().includes(complaintSearchQuery.toLowerCase());
+    const tracking = (complaint.trackingNumber || '').toLowerCase();
+    const shop = (complaint.shopName || '').toLowerCase();
+    const prod = (complaint.productName || '').toLowerCase();
+    const q = (complaintSearchQuery || '').toLowerCase();
+    const matchesSearch = tracking.includes(q) || shop.includes(q) || prod.includes(q);
     const matchesStatus =
       !selectedComplaintStatuses || selectedComplaintStatuses.includes(complaint.status);
     return matchesSearch && matchesStatus;
@@ -760,7 +854,7 @@ export const CitizenDashboard: React.FC = () => {
         localStorage.removeItem('sentinelx_offline_sos_queue');
         setIsOfflineSOSQueued(false);
         setActiveSOS(res.sos);
-        setActiveTab('sos');
+        switchTab('sos');
       }
     } catch {
       // Network disconnected / server unreachable: Persist to real Store-and-Forward Outbox
@@ -798,7 +892,7 @@ export const CitizenDashboard: React.FC = () => {
       setIsOfflineSOSQueued(true);
       setIsOnlineStatus(false);
       setActiveSOS(fallbackRecord);
-      setActiveTab('sos');
+      switchTab('sos');
     } finally {
       setIsTriggeringSOS(false);
     }
@@ -943,8 +1037,9 @@ export const CitizenDashboard: React.FC = () => {
               </button>
 
               <button
-                onClick={() => setActiveTab('sos')}
-                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-red-600/30 font-display whitespace-nowrap"
+                type="button"
+                onClick={() => switchTab('sos')}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-red-600/30 font-display whitespace-nowrap cursor-pointer"
               >
                 <span>View Live Dispatch</span>
                 <ChevronRight className="w-4 h-4" />
@@ -966,8 +1061,9 @@ export const CitizenDashboard: React.FC = () => {
           ].map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`px-3.5 py-2 rounded-lg font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
+              type="button"
+              onClick={() => switchTab(tab.id as any)}
+              className={`px-3.5 py-2 rounded-lg font-medium whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === tab.id
                   ? tab.isSOS
                     ? 'bg-red-500/15 text-red-400 border border-red-500/30 font-semibold'
@@ -1001,7 +1097,7 @@ export const CitizenDashboard: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Action 1: Report Crime */}
               <div
-                onClick={() => setActiveTab('report_crime')}
+                onClick={() => switchTab('report_crime')}
                 className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800/80 hover:border-emerald-500/40 hover:-translate-y-0.5 transition cursor-pointer group shadow-lg"
               >
                 <div className="w-11 h-11 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center text-emerald-400 mb-4 group-hover:scale-105 transition">
@@ -1021,7 +1117,7 @@ export const CitizenDashboard: React.FC = () => {
 
               {/* Action 2: Consumer Dispute */}
               <div
-                onClick={() => setActiveTab('consumer_dispute')}
+                onClick={() => switchTab('consumer_dispute')}
                 className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800/80 hover:border-amber-500/40 hover:-translate-y-0.5 transition cursor-pointer group shadow-lg"
               >
                 <div className="w-11 h-11 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center text-amber-400 mb-4 group-hover:scale-105 transition">
@@ -1061,7 +1157,7 @@ export const CitizenDashboard: React.FC = () => {
 
               {/* Action 4: Verify Product */}
               <div
-                onClick={() => setActiveTab('barcode_scanner')}
+                onClick={() => switchTab('barcode_scanner')}
                 className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800/80 hover:border-blue-500/40 hover:-translate-y-0.5 transition cursor-pointer group shadow-lg"
               >
                 <div className="w-11 h-11 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center text-[#02baff] mb-4 group-hover:scale-105 transition">
@@ -1089,7 +1185,7 @@ export const CitizenDashboard: React.FC = () => {
               subtitle={`${myReports.filter(r => r.status === ReportStatus.INVESTIGATION).length} Under Active Investigation`}
               icon={FilePlus}
               variant="emerald"
-              onClick={() => setActiveTab('my_reports')}
+              onClick={() => switchTab('my_reports')}
             />
 
             <StatCard
@@ -1098,7 +1194,7 @@ export const CitizenDashboard: React.FC = () => {
               subtitle={`${myComplaints.filter(c => c.status === ComplaintStatus.RESOLVED).length} Resolved & Compensated`}
               icon={Scale}
               variant="amber"
-              onClick={() => setActiveTab('my_complaints')}
+              onClick={() => switchTab('my_complaints')}
             />
 
             <StatCard
@@ -1125,8 +1221,9 @@ export const CitizenDashboard: React.FC = () => {
 
               {myReports.length > 0 && (
                 <button
-                  onClick={() => setActiveTab('my_reports')}
-                  className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition"
+                  type="button"
+                  onClick={() => switchTab('my_reports')}
+                  className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition cursor-pointer"
                 >
                   <span>View All Cases ({myReports.length})</span>
                   <ChevronRight className="w-4 h-4" />
@@ -1143,7 +1240,7 @@ export const CitizenDashboard: React.FC = () => {
                 description="If you witness or experience an incident, submit an authenticated report with confidentiality protection."
                 action={{
                   label: 'Lodge First Report',
-                  onClick: () => setActiveTab('report_crime'),
+                  onClick: () => switchTab('report_crime'),
                   icon: FilePlus
                 }}
               />
@@ -1255,11 +1352,12 @@ export const CitizenDashboard: React.FC = () => {
               </div>
               <div className="pt-2 flex items-center gap-3">
                 <button
+                  type="button"
                   onClick={() => {
                     setReportSuccessReceipt(null);
-                    setActiveTab('my_reports');
+                    switchTab('my_reports');
                   }}
-                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition"
+                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition cursor-pointer"
                 >
                   View in My Crime Cases
                 </button>
@@ -1708,11 +1806,12 @@ export const CitizenDashboard: React.FC = () => {
               </div>
               <div className="pt-2 flex items-center gap-3">
                 <button
+                  type="button"
                   onClick={() => {
                     setComplaintSuccessReceipt(null);
-                    setActiveTab('my_complaints');
+                    switchTab('my_complaints');
                   }}
-                  className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition"
+                  className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition cursor-pointer"
                 >
                   Track in My Consumer Claims
                 </button>
@@ -2428,8 +2527,9 @@ export const CitizenDashboard: React.FC = () => {
               </div>
 
               <button
-                onClick={() => setActiveTab('report_crime')}
-                className="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20"
+                type="button"
+                onClick={() => switchTab('report_crime')}
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20 cursor-pointer"
               >
                 <FilePlus className="w-3.5 h-3.5" />
                 <span>Lodge New</span>
@@ -2480,7 +2580,7 @@ export const CitizenDashboard: React.FC = () => {
               description="You have not filed any criminal complaints yet. In case of an emergency or offense, lodge a report."
               action={{
                 label: 'Report Crime Now',
-                onClick: () => setActiveTab('report_crime'),
+                onClick: () => switchTab('report_crime'),
                 icon: FilePlus
               }}
             />
@@ -2488,10 +2588,11 @@ export const CitizenDashboard: React.FC = () => {
             <div className="grid grid-cols-1 gap-4">
               {myReports
                 .filter(r => {
-                  const matchesSearch =
-                    r.caseId.toLowerCase().includes(reportSearchQuery.toLowerCase()) ||
-                    r.title.toLowerCase().includes(reportSearchQuery.toLowerCase()) ||
-                    r.district.toLowerCase().includes(reportSearchQuery.toLowerCase());
+                  const caseId = (r.caseId || '').toLowerCase();
+                  const title = (r.title || '').toLowerCase();
+                  const dist = (r.district || '').toLowerCase();
+                  const q = (reportSearchQuery || '').toLowerCase();
+                  const matchesSearch = caseId.includes(q) || title.includes(q) || dist.includes(q);
                   const matchesStatus =
                     reportStatusFilter === 'ALL' || r.status === reportStatusFilter;
                   return matchesSearch && matchesStatus;
@@ -2655,8 +2756,9 @@ export const CitizenDashboard: React.FC = () => {
               </div>
 
               <button
-                onClick={() => setActiveTab('consumer_dispute')}
-                className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-amber-500/20"
+                type="button"
+                onClick={() => switchTab('consumer_dispute')}
+                className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-amber-500/20 cursor-pointer"
               >
                 <Scale className="w-3.5 h-3.5" />
                 <span>File New</span>
@@ -2701,7 +2803,7 @@ export const CitizenDashboard: React.FC = () => {
               description="Have you witnessed overcharging or expired goods? Report to DNCRP and claim 25% fine incentive."
               action={{
                 label: 'File Dispute Now',
-                onClick: () => setActiveTab('consumer_dispute'),
+                onClick: () => switchTab('consumer_dispute'),
                 icon: Scale
               }}
             />
@@ -3124,7 +3226,7 @@ export const CitizenDashboard: React.FC = () => {
           setPricePaid(payload.pricePaid);
           setComplaintDesc(payload.description);
           setComplaintStep(1);
-          setActiveTab('consumer_dispute');
+          switchTab('consumer_dispute');
         }}
         onPrefillCrime={payload => {
           setCrimeType(payload.crimeType);
@@ -3135,11 +3237,11 @@ export const CitizenDashboard: React.FC = () => {
           setCrimeTitle(payload.title);
           setCrimeDesc(payload.description);
           setCrimeStep(1);
-          setActiveTab('report_crime');
+          switchTab('report_crime');
         }}
         onOpenCaseChat={caseData => setActiveChatCase(caseData)}
         onTriggerSOS={() => {
-          setActiveTab('sos');
+          switchTab('sos');
           setShowSOSConfirmModal(true);
         }}
       />
