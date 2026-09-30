@@ -22,17 +22,31 @@ import {
 const API_BASE = '/api';
 
 export class ApiClient {
-  private static getToken(): string | null {
-    return sessionStorage.getItem('sentinelx_token');
+  public static getToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    return sessionStorage.getItem('sentinelx_token') || localStorage.getItem('sentinelx_token');
   }
 
   public static setToken(token: string) {
-    sessionStorage.setItem('sentinelx_token', token);
+    if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.setItem('sentinelx_token', token);
+      localStorage.setItem('sentinelx_token', token);
+    } catch {
+      // ignore storage quota errors
+    }
   }
 
   public static clearToken() {
-    sessionStorage.removeItem('sentinelx_token');
-    localStorage.removeItem('sentinelx_token');
+    if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.removeItem('sentinelx_token');
+      localStorage.removeItem('sentinelx_token');
+      sessionStorage.removeItem('sentinelx_user');
+      localStorage.removeItem('sentinelx_user');
+    } catch {
+      // ignore
+    }
   }
 
   private static async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {

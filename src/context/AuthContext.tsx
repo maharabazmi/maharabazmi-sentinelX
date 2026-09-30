@@ -22,8 +22,19 @@ export interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return ApiClient.getToken();
+  });
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const stored = sessionStorage.getItem('sentinelx_user') || localStorage.getItem('sentinelx_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [activeAlerts, setActiveAlerts] = useState<EmergencyAlert[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -54,12 +65,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [token, user]);
 
-  // Initial load: Always start fresh as Guest on cold run
+  // Initial load: synchronize existing authenticated session if present
   useEffect(() => {
-    // Clear any residual tokens from previous browser runs so system always starts as Guest
-    ApiClient.clearToken();
-    setUser(null);
-    setToken(null);
+    const existingToken = ApiClient.getToken();
+    if (existingToken && user) {
+      ApiClient.setToken(existingToken);
+      refreshAlerts();
+      refreshNotifications();
+    }
     setIsLoading(false);
   }, []);
 
@@ -85,6 +98,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (res.success) {
         setUser(res.user);
         setToken(res.token);
+        try {
+          sessionStorage.setItem('sentinelx_user', JSON.stringify(res.user));
+          localStorage.setItem('sentinelx_user', JSON.stringify(res.user));
+        } catch {
+          // ignore storage error
+        }
         await refreshAlerts();
         await refreshNotifications();
       }
@@ -100,6 +119,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (res.success) {
         setUser(res.user);
         setToken(res.token);
+        try {
+          sessionStorage.setItem('sentinelx_user', JSON.stringify(res.user));
+          localStorage.setItem('sentinelx_user', JSON.stringify(res.user));
+        } catch {
+          // ignore storage error
+        }
         await refreshAlerts();
         await refreshNotifications();
       }
@@ -115,6 +140,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (res.success) {
         setUser(res.user);
         setToken(res.token);
+        try {
+          sessionStorage.setItem('sentinelx_user', JSON.stringify(res.user));
+          localStorage.setItem('sentinelx_user', JSON.stringify(res.user));
+        } catch {
+          // ignore storage error
+        }
         await refreshAlerts();
         await refreshNotifications();
       }
@@ -130,6 +161,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (res.success) {
         setUser(res.user);
         setToken(res.token);
+        try {
+          sessionStorage.setItem('sentinelx_user', JSON.stringify(res.user));
+          localStorage.setItem('sentinelx_user', JSON.stringify(res.user));
+        } catch {
+          // ignore storage error
+        }
       }
     } finally {
       setIsLoading(false);
@@ -138,6 +175,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(() => {
     ApiClient.clearToken();
+    try {
+      sessionStorage.removeItem('sentinelx_user');
+      localStorage.removeItem('sentinelx_user');
+    } catch {
+      // ignore
+    }
     setUser(null);
     setToken(null);
     setActiveAlerts([]);

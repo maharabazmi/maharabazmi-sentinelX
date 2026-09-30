@@ -48,7 +48,13 @@ const AppContent: React.FC = () => {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isAdminClearanceOpen, setIsAdminClearanceOpen] = useState(false);
-  const [currentTab, setCurrentTab] = useState<'home' | 'dashboard'>('home');
+  const [currentTab, setCurrentTab] = useState<'home' | 'dashboard'>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem('sentinelx_user') || localStorage.getItem('sentinelx_user');
+      if (stored) return 'dashboard';
+    }
+    return 'home';
+  });
 
   // Classified admin keyboard shortcut (Ctrl + Alt + A)
   React.useEffect(() => {
