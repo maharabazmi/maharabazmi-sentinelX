@@ -190,50 +190,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           </p>
         </div>
 
-        {/* Quick Demo Pre-fill for Evaluation */}
-        <div className="mt-5 pt-3.5 border-t border-slate-800/80 space-y-2">
-          <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
-            <span>Quick-Fill Demo Credentials:</span>
-            {onSwitchToAdminClearance && (
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onSwitchToAdminClearance();
-                }}
-                className="text-purple-400 hover:text-purple-300 font-semibold hover:underline"
-              >
-                HQ Admin Clearance →
-              </button>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
-            <button
-              type="button"
-              onClick={() => {
-                setIdentifier('citizen.tanvir@example.com');
-                setPassword('demo1234');
-                setError(null);
-              }}
-              className="py-2 px-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-900/50 hover:border-emerald-400 transition text-center truncate font-semibold"
-              title="Tanvir Hossain (citizen.tanvir@example.com)"
-            >
-              Citizen (Tanvir)
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIdentifier('police.kamrul@dmp.gov.bd');
-                setPassword('demo1234');
-                setError(null);
-              }}
-              className="py-2 px-2.5 rounded-xl bg-blue-950/40 border border-blue-500/30 text-blue-300 hover:bg-blue-900/50 hover:border-blue-400 transition text-center truncate font-semibold"
-              title="Inspector Kamrul Islam (police.kamrul@dmp.gov.bd)"
-            >
-              Police OC (Gulshan)
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* Forgot Password OTP Modal */}
