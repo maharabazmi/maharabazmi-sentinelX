@@ -73,6 +73,17 @@ export class ApiClient {
     }
 
     if (!response.ok) {
+      if (response.status === 401) {
+        const isAuthAttempt = endpoint.startsWith('/auth/login') || endpoint.startsWith('/auth/admin-clearance');
+        if (!isAuthAttempt) {
+          this.clearToken();
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('sentinelx_session_expired', {
+              detail: { message: data?.error || 'Your security session has expired. Please sign in again.' }
+            }));
+          }
+        }
+      }
       throw new Error(data?.error || data?.message || `Request failed with status ${response.status}`);
     }
 

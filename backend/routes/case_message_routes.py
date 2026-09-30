@@ -15,6 +15,7 @@ from ..services.jurisdiction_service import (
     is_consumer_district_match,
     normalize_consumer_district,
     get_consumer_officer_district,
+    is_same_thana,
 )
 
 case_message_bp = Blueprint("case_messages", __name__, url_prefix="/api/cases")
@@ -57,6 +58,41 @@ def _can_access_consumer_case(user, complaint):
     return bool(district and is_consumer_district_match(district, complaint.shopDistrict))
 
 
+def _can_user_access_case(user, case_type, report, complaint):
+    """
+    Role-based case messaging access control:
+    - CITIZEN: must be the creator of the crime report or consumer claim.
+    - POLICE: crime case must match officer's thana or be assigned to the officer.
+    - CONSUMER_RIGHTS: consumer case must match officer's assigned district or assignment.
+    - ADMIN: full oversight access across all national cases.
+    """
+    if user.role == "ADMIN":
+        return True
+
+    if user.role == "CITIZEN":
+        if case_type == "CRIME" and report:
+            return report.reporterId == user.id
+        elif case_type == "CONSUMER" and complaint:
+            return complaint.complainantId == user.id
+        return False
+
+    if user.role == "POLICE":
+        if case_type != "CRIME" or not report:
+            return False
+        if report.assignedOfficerId == user.id:
+            return True
+        if user.stationOrThana and report.thana and is_same_thana(user.stationOrThana, report.thana):
+            return True
+        return False
+
+    if user.role == "CONSUMER_RIGHTS":
+        if case_type != "CONSUMER" or not complaint:
+            return False
+        return _can_access_consumer_case(user, complaint)
+
+    return False
+
+
 @case_message_bp.route("/<case_id>/messages", methods=["GET", "POST"])
 @verify_auth
 def handle_case_messages(case_id):
@@ -64,11 +100,10 @@ def handle_case_messages(case_id):
     # 1. GET: Retrieve all chronological messages across both canonical caseId and internal id aliases
     if request.method == "GET":
         with get_db() as db:
-            canonical_id, alias_ids, case_type, _, complaint = _resolve_case_context(db, case_id)
-            if g.user.role == "CONSUMER_RIGHTS" and (
-                case_type != "CONSUMER" or not _can_access_consumer_case(g.user, complaint)
-            ):
-                return jsonify({"error": "This case is outside your assigned district."}), 403
+            canonical_id, alias_ids, case_type, report, complaint = _resolve_case_context(db, case_id)
+            if not _can_user_access_case(g.user, case_type, report, complaint):
+                return jsonify({"error": "Access Denied: You are not authorized to view messages for this case."}), 403
+
             messages = (
                 db.query(CaseMessage)
                 .filter(CaseMessage.caseId.in_(alias_ids))
@@ -114,10 +149,8 @@ def handle_case_messages(case_id):
     with get_db() as db:
         canonical_id, _, resolved_type, report, complaint = _resolve_case_context(db, case_id)
         effective_case_type = case_type or resolved_type
-        if g.user.role == "CONSUMER_RIGHTS" and (
-            effective_case_type != "CONSUMER" or not _can_access_consumer_case(g.user, complaint)
-        ):
-            return jsonify({"error": "This case is outside your assigned district."}), 403
+        if not _can_user_access_case(g.user, effective_case_type, report, complaint):
+            return jsonify({"error": "Access Denied: You are not authorized to post messages to this case."}), 403
 
         new_message = CaseMessage(
             id=msg_id,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { Header } from './components/common/Header';
@@ -8,13 +8,40 @@ import { RegisterWizard } from './components/auth/RegisterWizard';
 import { AdminClearanceModal } from './components/auth/AdminClearanceModal';
 import { ForcePasswordChangeModal } from './components/auth/ForcePasswordChangeModal';
 import { LandingPage } from './components/public/LandingPage';
-import { CitizenDashboard } from './components/citizen/CitizenDashboard';
-import { PoliceDashboard } from './components/police/PoliceDashboard';
-import { ConsumerDashboard } from './components/consumer/ConsumerDashboard';
-import { AdminDashboard } from './components/admin/AdminDashboard';
 import { UserRole } from './types';
 import { Shield, Lock, PhoneCall } from 'lucide-react';
 import { BrandLogo } from './components/common/BrandLogo';
+
+// Lazy-loaded role dashboards for optimized bundle code splitting
+const CitizenDashboard = lazy(() =>
+  import('./components/citizen/CitizenDashboard').then(m => ({ default: m.CitizenDashboard }))
+);
+const PoliceDashboard = lazy(() =>
+  import('./components/police/PoliceDashboard').then(m => ({ default: m.PoliceDashboard }))
+);
+const ConsumerDashboard = lazy(() =>
+  import('./components/consumer/ConsumerDashboard').then(m => ({ default: m.ConsumerDashboard }))
+);
+const AdminDashboard = lazy(() =>
+  import('./components/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard }))
+);
+
+const DashboardLoadingFallback: React.FC = () => (
+  <div className="min-h-[70vh] flex flex-col items-center justify-center text-center p-6 space-y-4">
+    <div className="relative flex items-center justify-center">
+      <div className="w-12 h-12 rounded-full border-2 border-emerald-500/20 border-t-emerald-500 animate-spin" />
+      <Shield className="w-5 h-5 text-emerald-400 absolute animate-pulse" />
+    </div>
+    <div className="space-y-1">
+      <p className="text-sm font-semibold tracking-wider text-slate-200 font-['Orbitron']">
+        INITIALIZING SECURE MODULE...
+      </p>
+      <p className="text-xs text-slate-500 font-mono">
+        Decrypting clearance and synchronizing telemetries
+      </p>
+    </div>
+  </div>
+);
 
 const AppContent: React.FC = () => {
   const { user, activeAlerts } = useAuth();
@@ -104,18 +131,26 @@ const AppContent: React.FC = () => {
     }
 
     // 3. Active Dashboard Views (when authenticated and currentTab === 'dashboard')
-    switch (user.role) {
-      case UserRole.CITIZEN:
-        return <CitizenDashboard />;
-      case UserRole.POLICE:
-        return <PoliceDashboard />;
-      case UserRole.CONSUMER_RIGHTS:
-        return <ConsumerDashboard />;
-      case UserRole.ADMIN:
-        return <AdminDashboard />;
-      default:
-        return <CitizenDashboard />;
-    }
+    const renderDashboard = () => {
+      switch (user.role) {
+        case UserRole.CITIZEN:
+          return <CitizenDashboard />;
+        case UserRole.POLICE:
+          return <PoliceDashboard />;
+        case UserRole.CONSUMER_RIGHTS:
+          return <ConsumerDashboard />;
+        case UserRole.ADMIN:
+          return <AdminDashboard />;
+        default:
+          return <CitizenDashboard />;
+      }
+    };
+
+    return (
+      <Suspense fallback={<DashboardLoadingFallback />}>
+        {renderDashboard()}
+      </Suspense>
+    );
   };
 
   return (

@@ -136,13 +136,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
     ApiClient.clearToken();
     setUser(null);
     setToken(null);
     setActiveAlerts([]);
     setNotifications([]);
-  };
+  }, []);
+
+  // Auto-logout when a 401 session expiration occurs
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      logout();
+    };
+    window.addEventListener('sentinelx_session_expired', handleSessionExpired);
+    return () => window.removeEventListener('sentinelx_session_expired', handleSessionExpired);
+  }, [logout]);
 
   const markNotificationRead = async (id: string) => {
     try {
