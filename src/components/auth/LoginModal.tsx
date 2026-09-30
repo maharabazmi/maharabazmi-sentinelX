@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Lock, AlertCircle, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { X, Lock, AlertCircle, RefreshCw, Eye, EyeOff, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
 
@@ -7,12 +7,14 @@ interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSwitchToRegister: () => void;
+  onSwitchToAdminClearance?: () => void;
 }
 
 export const LoginModal: React.FC<LoginModalProps> = ({
   isOpen,
   onClose,
-  onSwitchToRegister
+  onSwitchToRegister,
+  onSwitchToAdminClearance
 }) => {
   const { login } = useAuth();
   const [identifier, setIdentifier] = useState('');
@@ -90,9 +92,23 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         </div>
 
         {error && (
-          <div className="mb-5 p-3.5 rounded-2xl bg-red-950/50 border border-red-500/40 text-red-300 text-xs flex items-start gap-2.5 animate-in fade-in">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-red-400" />
-            <span className="leading-relaxed">{error}</span>
+          <div className="mb-5 p-3.5 rounded-2xl bg-red-950/50 border border-red-500/40 text-red-300 text-xs flex flex-col gap-2 animate-in fade-in">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-red-400" />
+              <span className="leading-relaxed">{error}</span>
+            </div>
+            {onSwitchToAdminClearance && error.toLowerCase().includes('admin') && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onSwitchToAdminClearance();
+                }}
+                className="mt-1 self-start px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-mono text-xs font-semibold transition shadow-md shadow-purple-600/30"
+              >
+                Switch to Admin Clearance Console →
+              </button>
+            )}
           </div>
         )}
 
@@ -173,6 +189,22 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </button>
           </p>
         </div>
+
+        {onSwitchToAdminClearance && (
+          <div className="mt-4 pt-4 border-t border-slate-800/80 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onSwitchToAdminClearance();
+              }}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-purple-950/40 hover:bg-purple-900/50 border border-purple-500/30 hover:border-purple-500/60 text-purple-300 hover:text-purple-200 text-xs font-mono font-medium transition"
+            >
+              <ShieldAlert className="w-3.5 h-3.5 text-purple-400" />
+              <span>HQ Admin Higher Authority Clearance →</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Forgot Password OTP Modal */}

@@ -166,6 +166,10 @@ const AppContent: React.FC = () => {
           setIsLoginOpen(false);
           setIsRegisterOpen(true);
         }}
+        onSwitchToAdminClearance={() => {
+          setIsLoginOpen(false);
+          setIsAdminClearanceOpen(true);
+        }}
       />
 
       <RegisterWizard

@@ -729,6 +729,34 @@ Portal URL: ${window.location.origin}`;
       {/* ========================================================================= */}
       {activeTab === 'system_overview' && systemStats && (
         <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Active Threat Surge & SOS Cluster Alert Banner */}
+          {automatedTriggers && (automatedTriggers.sosClusters?.length > 0 || automatedTriggers.incidentSpikes?.length > 0) && (
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-red-950/60 via-purple-950/40 to-slate-900 border border-red-500/40 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in slide-in-from-top">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-red-500/20 border border-red-500/40 text-red-400 shrink-0">
+                  <AlertTriangle className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white font-display flex items-center gap-2">
+                    🚨 {automatedTriggers.totalTriggers} Automated Threat Triggers Active
+                    <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 text-[10px] font-mono font-bold">Action Required</span>
+                  </h4>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    {automatedTriggers.sosClusters?.length || 0} emergency SOS cluster(s) & {automatedTriggers.incidentSpikes?.length || 0} incident velocity surge(s) detected across jurisdictions.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab('ai_prediction')}
+                className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-red-600 to-purple-600 hover:from-red-500 hover:to-purple-500 text-white font-bold text-xs shrink-0 shadow-lg shadow-red-600/30 transition flex items-center justify-center gap-2 active:scale-95"
+              >
+                <span>View & Fast-Track Directives</span>
+                <span className="text-sm">→</span>
+              </button>
+            </div>
+          )}
+
           {/* National Data Intelligence & Export Banner */}
           <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-slate-950 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
             <div className="flex items-center gap-3">
