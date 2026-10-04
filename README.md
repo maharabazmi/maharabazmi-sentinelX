@@ -15,7 +15,7 @@ The application combines public-safety reporting, consumer grievance handling, S
 - DNCRP dashboard for consumer-complaint intake, investigation, enforcement, and reward-status work
 - Admin clearance portal for nationwide metrics, AI crime intelligence, audit logs, user provisioning, and CSV export
 - Sentinel Prime AI assistant for citizen guidance, case lookups, SOS guidance, and form prefill actions
--admin login shortcut ctrl+alt+A(for confidentiality purpose) or tap 5 times in the logo
+- admin login shortcut ctrl+alt+A(for confidentiality purpose) or tap 5 times in the logo
 ## Technology
 
 | Layer | Tools |
